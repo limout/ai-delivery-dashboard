@@ -6,6 +6,7 @@ class ThroughputMetric(Metric):
     name = "throughput"
     description = "Number of completed work items."
     category = "flow"
+    required_data = "work_items"
 
     def calculate(self, work_items: list[WorkItem]) -> dict:
         completed = [

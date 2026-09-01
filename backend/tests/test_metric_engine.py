@@ -1,6 +1,11 @@
+from datetime import datetime, timezone
+
 from app.core.models.work_item import WorkItem
+from app.core.models.work_item_history import WorkItemHistory
 from app.metrics.engine import MetricEngine
-from app.metrics.registry import get_default_registry
+from app.metrics.registry import MetricRegistry
+from app.metrics.throughput import ThroughputMetric
+from app.metrics.cycle_time import CycleTimeMetric
 
 
 def test_metric_engine_calculates_selected_metrics():
@@ -21,22 +26,45 @@ def test_metric_engine_calculates_selected_metrics():
             title="Second",
             status="In Progress",
         ),
-        WorkItem(
-            id="3",
-            source="fake",
-            project="DEMO",
-            type="Task",
-            title="Third",
-            status="Done",
+    ]
+
+    history = [
+        WorkItemHistory(
+            work_item_id="2",
+            timestamp=datetime(
+                2026, 8, 20, 9, 0,
+                tzinfo=timezone.utc,
+            ),
+            field="status",
+            from_value="To Do",
+            to_value="In Progress",
+        ),
+        WorkItemHistory(
+            work_item_id="2",
+            timestamp=datetime(
+                2026, 8, 23, 9, 0,
+                tzinfo=timezone.utc,
+            ),
+            field="status",
+            from_value="In Progress",
+            to_value="Done",
         ),
     ]
 
-    engine = MetricEngine(get_default_registry())
+    registry = MetricRegistry()
+    registry.register(ThroughputMetric())
+    registry.register(CycleTimeMetric())
+
+    engine = MetricEngine(registry)
 
     result = engine.calculate(
-        work_items,
-        ["throughput"],
+        work_items=work_items,
+        history=history,
+        metric_names=[
+            "throughput",
+            "cycle_time",
+        ],
     )
 
-    assert "throughput" in result
-    assert result["throughput"]["value"] == 2
+    assert result["throughput"]["value"] == 1
+    assert result["cycle_time"]["value"] == 3.0

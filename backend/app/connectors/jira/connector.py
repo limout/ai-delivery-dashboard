@@ -3,6 +3,7 @@ import requests
 from app.core.config import settings
 from app.core.connectors.base import DeliveryConnector
 from app.core.models.work_item import WorkItem
+from app.core.models.work_item_history import WorkItemHistory
 
 
 class JiraConnector(DeliveryConnector):
@@ -67,14 +68,35 @@ class JiraConnector(DeliveryConnector):
     def get_work_item_history(
         self,
         work_item_id: str,
-    ) -> list[dict]:
+    ) -> list[WorkItemHistory]:
         response = self.session.get(
             f"{self.base_url}/rest/api/3/issue/{work_item_id}",
             params={"expand": "changelog"},
         )
         response.raise_for_status()
 
-        return response.json().get("changelog", {}).get("histories", [])
+        histories = response.json().get(
+            "changelog",
+            {}
+        ).get("histories", [])
+
+        result = []
+
+        for history in histories:
+            timestamp = history.get("created")
+
+            for item in history.get("items", []):
+                result.append(
+                    WorkItemHistory(
+                        work_item_id=work_item_id,
+                        timestamp=timestamp,
+                        field=item.get("field", ""),
+                        from_value=item.get("fromString"),
+                        to_value=item.get("toString"),
+                    )
+                )
+
+        return result
 
     def get_iterations(self, project: str) -> list[dict]:
         # Jira Scrum iteration support will be added through

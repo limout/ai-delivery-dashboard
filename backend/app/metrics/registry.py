@@ -1,6 +1,6 @@
 from app.metrics.base import Metric
 from app.metrics.throughput import ThroughputMetric
-
+from app.metrics.cycle_time import CycleTimeMetric
 
 class MetricRegistry:
     def __init__(self):
@@ -23,5 +23,6 @@ def get_default_registry() -> MetricRegistry:
     registry = MetricRegistry()
 
     registry.register(ThroughputMetric())
-
+    registry.register(CycleTimeMetric())
+    
     return registry

@@ -7,8 +7,9 @@ class Metric(ABC):
     name: str
     description: str
     category: str
+    required_data: str
 
     @abstractmethod
-    def calculate(self, work_items: list[WorkItem]) -> dict:
-        """Calculate this metric from normalized work items."""
+    def calculate(self, data) -> dict:
+        """Calculate this metric from the required data."""
         raise NotImplementedError
