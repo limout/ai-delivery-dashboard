@@ -1,0 +1,139 @@
+import requests
+
+from app.core.config import settings
+from app.core.connectors.base import DeliveryConnector
+from app.core.models.work_item import WorkItem
+
+
+class JiraConnector(DeliveryConnector):
+
+    def __init__(self):
+        if not settings.jira_url:
+            raise ValueError("JIRA_URL is missing")
+
+        if not settings.jira_email:
+            raise ValueError("JIRA_EMAIL is missing")
+
+        if not settings.jira_api_token:
+            raise ValueError("JIRA_API_TOKEN is missing")
+
+        self.base_url = settings.jira_url.rstrip("/")
+
+        self.session = requests.Session()
+        self.session.auth = (
+            settings.jira_email,
+            settings.jira_api_token,
+        )
+        self.session.headers.update({
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        })
+
+    def get_projects(self) -> list[dict]:
+        response = self.session.get(
+            f"{self.base_url}/rest/api/3/project/search",
+            params={"maxResults": 50},
+        )
+        response.raise_for_status()
+
+        return [
+            {
+                "id": project["id"],
+                "key": project["key"],
+                "name": project["name"],
+            }
+            for project in response.json().get("values", [])
+        ]
+
+    def get_work_items(self, project: str) -> list[WorkItem]:
+        response = self.session.get(
+            f"{self.base_url}/rest/api/3/search/jql",
+            params={
+                "jql": f"project = {project} ORDER BY created ASC",
+                "maxResults": 50,
+                "fields": (
+                    "summary,status,priority,assignee,"
+                    "created,updated,duedate,issuetype"
+                ),
+            },
+        )
+        response.raise_for_status()
+
+        return [
+            self._to_work_item(issue, project)
+            for issue in response.json().get("issues", [])
+        ]
+
+    def get_work_item_history(
+        self,
+        work_item_id: str,
+    ) -> list[dict]:
+        response = self.session.get(
+            f"{self.base_url}/rest/api/3/issue/{work_item_id}",
+            params={"expand": "changelog"},
+        )
+        response.raise_for_status()
+
+        return response.json().get("changelog", {}).get("histories", [])
+
+    def get_iterations(self, project: str) -> list[dict]:
+        # Jira Scrum iteration support will be added through
+        # the Agile API when we implement Scrum metrics.
+        return []
+
+    def get_releases(self, project: str) -> list[dict]:
+        response = self.session.get(
+            f"{self.base_url}/rest/api/3/project/{project}/versions",
+        )
+        response.raise_for_status()
+
+        return [
+            {
+                "id": version["id"],
+                "name": version["name"],
+                "released": version.get("released", False),
+                "release_date": version.get("releaseDate"),
+            }
+            for version in response.json()
+        ]
+
+    def _to_work_item(
+        self,
+        issue: dict,
+        project: str,
+    ) -> WorkItem:
+        fields = issue["fields"]
+
+        priority = fields.get("priority")
+        assignee = fields.get("assignee")
+        issue_type = fields.get("issuetype")
+
+        return WorkItem(
+            id=issue["key"],
+            source="jira",
+            project=project,
+            type=(
+                issue_type["name"]
+                if issue_type
+                else "Unknown"
+            ),
+            title=fields.get("summary", ""),
+            status=(
+                fields.get("status", {}).get("name")
+                if fields.get("status")
+                else None
+            ),
+            priority=(
+                priority["name"]
+                if priority
+                else None
+            ),
+            assignee=(
+                assignee.get("displayName")
+                if assignee
+                else None
+            ),
+            created_at=fields.get("created"),
+            updated_at=fields.get("updated"),
+            due_date=fields.get("duedate"),
+        )
