@@ -15,9 +15,10 @@ def test_registry_lists_available_metrics():
 
     metrics = registry.list_metrics()
 
-    assert len(metrics) == 2
+    assert len(metrics) == 3
 
     names = {metric.name for metric in metrics}
 
     assert "throughput" in names
     assert "cycle_time" in names
+    assert "lead_time" in names

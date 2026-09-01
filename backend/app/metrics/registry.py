@@ -1,6 +1,7 @@
 from app.metrics.base import Metric
 from app.metrics.throughput import ThroughputMetric
 from app.metrics.cycle_time import CycleTimeMetric
+from app.metrics.lead_time import LeadTimeMetric
 
 class MetricRegistry:
     def __init__(self):
@@ -24,5 +25,6 @@ def get_default_registry() -> MetricRegistry:
 
     registry.register(ThroughputMetric())
     registry.register(CycleTimeMetric())
-    
+    registry.register(LeadTimeMetric())
+
     return registry
