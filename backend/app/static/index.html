@@ -135,6 +135,67 @@
             line-height: 1.4;
         }
 
+        .history-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 35px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .history-header h2 {
+            margin: 0;
+        }
+
+        .history-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .history-controls button {
+            padding: 7px 12px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .history-controls button.active {
+            font-weight: bold;
+            background: #eee;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+        }
+
+        .chart {
+            width: 100%;
+            height: 350px;
+            display: block;
+        }
+
+        .chart-empty {
+            height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+        }
+
+        .history-status {
+            margin-top: 15px;
+            color: #777;
+            font-size: 13px;
+        }
+
         .error {
             margin-top: 20px;
             color: #b00020;
@@ -144,11 +205,21 @@
             .metrics {
                 grid-template-columns: repeat(2, 1fr);
             }
+
+            .history-header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 15px;
+            }
         }
 
         @media (max-width: 550px) {
             .metrics {
                 grid-template-columns: 1fr;
+            }
+
+            body {
+                padding: 20px;
             }
         }
     </style>
@@ -172,6 +243,51 @@
     </div>
 
     <div id="metrics"></div>
+
+    <div id="history-section" class="history-section">
+
+        <div class="history-header">
+            <h2>Historical Metrics</h2>
+
+            <div class="history-controls">
+                <button
+                    id="days-7"
+                    onclick="loadHistoricalMetrics(7)"
+                >
+                    7 days
+                </button>
+
+                <button
+                    id="days-14"
+                    class="active"
+                    onclick="loadHistoricalMetrics(14)"
+                >
+                    14 days
+                </button>
+
+                <button
+                    id="days-30"
+                    onclick="loadHistoricalMetrics(30)"
+                >
+                    30 days
+                </button>
+            </div>
+        </div>
+
+        <div class="chart-wrapper">
+            <svg
+                id="wip-chart"
+                class="chart"
+                viewBox="0 0 1000 350"
+                preserveAspectRatio="none"
+            ></svg>
+        </div>
+
+        <div id="history-status" class="history-status">
+            Loading historical WIP...
+        </div>
+
+    </div>
 
     <div id="error" class="error"></div>
 
@@ -200,7 +316,8 @@
 
     function renderMetricSelector() {
 
-        const selector = document.getElementById("metric-selector");
+        const selector =
+            document.getElementById("metric-selector");
 
         selector.innerHTML = "<h2>Metrics</h2>";
 
@@ -208,7 +325,8 @@
 
         for (const metric of availableMetrics) {
 
-            const category = metric.category || "other";
+            const category =
+                metric.category || "other";
 
             if (!categories[category]) {
                 categories[category] = [];
@@ -226,36 +344,54 @@
             "other"
         ];
 
-        const sortedCategories = Object.keys(categories).sort((a, b) => {
+        const sortedCategories =
+            Object.keys(categories).sort((a, b) => {
 
-            const indexA = categoryOrder.indexOf(a);
-            const indexB = categoryOrder.indexOf(b);
+                const indexA =
+                    categoryOrder.indexOf(a);
 
-            return (
-                (indexA === -1 ? 999 : indexA) -
-                (indexB === -1 ? 999 : indexB)
-            );
-        });
+                const indexB =
+                    categoryOrder.indexOf(b);
+
+                return (
+                    (indexA === -1 ? 999 : indexA) -
+                    (indexB === -1 ? 999 : indexB)
+                );
+            });
 
 
         for (const category of sortedCategories) {
 
-            const categoryContainer = document.createElement("div");
-            categoryContainer.className = "category-selector";
+            const categoryContainer =
+                document.createElement("div");
 
-            const categoryTitle = document.createElement("div");
-            categoryTitle.className = "category-title";
-            categoryTitle.textContent = category;
+            categoryContainer.className =
+                "category-selector";
 
-            categoryContainer.appendChild(categoryTitle);
+            const categoryTitle =
+                document.createElement("div");
+
+            categoryTitle.className =
+                "category-title";
+
+            categoryTitle.textContent =
+                category;
+
+            categoryContainer.appendChild(
+                categoryTitle
+            );
 
 
             for (const metric of categories[category]) {
 
-                const label = document.createElement("label");
-                label.className = "metric-option";
+                const label =
+                    document.createElement("label");
 
-                const checkbox = document.createElement("input");
+                label.className =
+                    "metric-option";
+
+                const checkbox =
+                    document.createElement("input");
 
                 checkbox.type = "checkbox";
                 checkbox.value = metric.name;
@@ -263,12 +399,16 @@
 
                 label.appendChild(checkbox);
 
-
-                const text = document.createTextNode(
-                    metric.name
-                        .replaceAll("_", " ")
-                        .replace(/\b\w/g, letter => letter.toUpperCase())
-                );
+                const text =
+                    document.createTextNode(
+                        metric.name
+                            .replaceAll("_", " ")
+                            .replace(
+                                /\b\w/g,
+                                letter =>
+                                    letter.toUpperCase()
+                            )
+                    );
 
                 label.appendChild(text);
 
@@ -282,9 +422,10 @@
 
     function getSelectedMetrics() {
 
-        const checkboxes = document.querySelectorAll(
-            '#metric-selector input[type="checkbox"]:checked'
-        );
+        const checkboxes =
+            document.querySelectorAll(
+                '#metric-selector input[type="checkbox"]:checked'
+            );
 
         return Array.from(checkboxes).map(
             checkbox => checkbox.value
@@ -294,27 +435,34 @@
 
     async function loadMetrics() {
 
-        const container = document.getElementById("metrics");
-        const errorContainer = document.getElementById("error");
-        const button = document.getElementById("load-button");
+        const container =
+            document.getElementById("metrics");
+
+        const errorContainer =
+            document.getElementById("error");
+
+        const button =
+            document.getElementById("load-button");
 
         try {
 
-            const project = document.getElementById("project").value.trim();
+            const project =
+                document.getElementById("project")
+                    .value
+                    .trim();
 
             if (!project) {
                 throw new Error("Project is required");
             }
 
-
-            const selectedMetrics = getSelectedMetrics();
+            const selectedMetrics =
+                getSelectedMetrics();
 
             if (selectedMetrics.length === 0) {
-                throw new Error("Select at least one metric");
+                throw new Error(
+                    "Select at least one metric"
+                );
             }
-
-
-            // Start loading state
 
             button.disabled = true;
             button.textContent = "Loading...";
@@ -322,57 +470,53 @@
             container.innerHTML = "Loading...";
             errorContainer.textContent = "";
 
+            const query =
+                selectedMetrics
+                    .map(
+                        metric =>
+                            `metric_names=${encodeURIComponent(metric)}`
+                    )
+                    .join("&");
 
-            // Build query parameters
-
-            const query = selectedMetrics
-                .map(metric =>
-                    `metric_names=${encodeURIComponent(metric)}`
-                )
-                .join("&");
-
-
-            // Request only selected metrics
-
-            const response = await fetch(
-                `/projects/${encodeURIComponent(project)}/metrics?${query}`
-            );
-
+            const response =
+                await fetch(
+                    `/projects/${encodeURIComponent(project)}/metrics?${query}`
+                );
 
             if (!response.ok) {
-                throw new Error("Failed to load metrics");
+                throw new Error(
+                    "Failed to load metrics"
+                );
             }
 
-
-            const data = await response.json();
+            const data =
+                await response.json();
 
             container.innerHTML = "";
 
-
             const categories = {};
 
-
-            for (const [name, metric] of Object.entries(data)) {
+            for (
+                const [name, metric]
+                of Object.entries(data)
+            ) {
 
                 if (!selectedMetrics.includes(name)) {
                     continue;
                 }
 
-
-                const category = metric.category || "other";
-
+                const category =
+                    metric.category || "other";
 
                 if (!categories[category]) {
                     categories[category] = [];
                 }
-
 
                 categories[category].push({
                     name,
                     ...metric
                 });
             }
-
 
             const categoryOrder = [
                 "snapshot",
@@ -383,59 +527,83 @@
                 "other"
             ];
 
+            const sortedCategories =
+                Object.keys(categories).sort(
+                    (a, b) => {
 
-            const sortedCategories = Object.keys(categories).sort((a, b) => {
+                        const indexA =
+                            categoryOrder.indexOf(a);
 
-                const indexA = categoryOrder.indexOf(a);
-                const indexB = categoryOrder.indexOf(b);
+                        const indexB =
+                            categoryOrder.indexOf(b);
 
-                return (
-                    (indexA === -1 ? 999 : indexA) -
-                    (indexB === -1 ? 999 : indexB)
+                        return (
+                            (indexA === -1 ? 999 : indexA) -
+                            (indexB === -1 ? 999 : indexB)
+                        );
+                    }
                 );
-            });
 
 
             for (const category of sortedCategories) {
 
-                const categorySection = document.createElement("div");
-                categorySection.className = "category";
+                const categorySection =
+                    document.createElement("div");
 
+                categorySection.className =
+                    "category";
 
-                const categoryTitle = document.createElement("h2");
-                categoryTitle.className = "category-title";
-                categoryTitle.textContent = category;
+                const categoryTitle =
+                    document.createElement("h2");
 
+                categoryTitle.className =
+                    "category-title";
 
-                const metricsGrid = document.createElement("div");
-                metricsGrid.className = "metrics";
+                categoryTitle.textContent =
+                    category;
+
+                const metricsGrid =
+                    document.createElement("div");
+
+                metricsGrid.className =
+                    "metrics";
 
 
                 for (const metric of categories[category]) {
 
-                    const card = document.createElement("div");
+                    const card =
+                        document.createElement("div");
+
                     card.className = "card";
 
+                    const title =
+                        metric.name
+                            .replaceAll("_", " ")
+                            .toUpperCase();
 
-                    const title = metric.name
-                        .replaceAll("_", " ")
-                        .toUpperCase();
+                    const value =
+                        metric.value === null
+                            ? "N/A"
+                            : metric.value;
 
+                    const sampleText =
+                        metric.sample_size
+                            ? `Sample: ${metric.sample_size} items`
+                            : "No completed items";
 
-                    const value = metric.value === null
-                        ? "N/A"
-                        : metric.value;
+                    const unitText =
+                        metric.value === null
+                            ? "No completed cycles"
+                            : metric.unit;
 
+                    let qualityText = "";
 
-                    const sampleText = metric.sample_size
-                        ? `Sample: ${metric.sample_size} items`
-                        : "No completed items";
+                    if (metric.data_quality) {
 
-
-                    const unitText = metric.value === null
-                        ? "No completed cycles"
-                        : metric.unit;
-
+                        qualityText =
+                            `${metric.data_quality.status}: ` +
+                            `${metric.data_quality.message}`;
+                    }
 
                     card.innerHTML = `
                         <h2>${title}</h2>
@@ -443,17 +611,27 @@
                         <div class="unit">${unitText}</div>
                         <div class="sample">${sampleText}</div>
                         <div class="description">${metric.description}</div>
+                        ${
+                            qualityText
+                                ? `<div class="description">${qualityText}</div>`
+                                : ""
+                        }
                     `;
-
 
                     metricsGrid.appendChild(card);
                 }
 
+                categorySection.appendChild(
+                    categoryTitle
+                );
 
-                categorySection.appendChild(categoryTitle);
-                categorySection.appendChild(metricsGrid);
+                categorySection.appendChild(
+                    metricsGrid
+                );
 
-                container.appendChild(categorySection);
+                container.appendChild(
+                    categorySection
+                );
             }
 
         } catch (error) {
@@ -461,7 +639,8 @@
             container.innerHTML = "";
 
             errorContainer.textContent =
-                "Error loading metrics: " + error.message;
+                "Error loading metrics: " +
+                error.message;
 
         } finally {
 
@@ -471,16 +650,363 @@
     }
 
 
+    async function loadHistoricalMetrics(days = 14) {
+
+        const project =
+            document.getElementById("project")
+                .value
+                .trim();
+
+        const chart =
+            document.getElementById("wip-chart");
+
+        const status =
+            document.getElementById("history-status");
+
+        const errorContainer =
+            document.getElementById("error");
+
+        if (!project) {
+
+            errorContainer.textContent =
+                "Project is required";
+
+            return;
+        }
+
+        chart.innerHTML = "";
+
+        status.textContent =
+            "Loading historical WIP...";
+
+        document
+            .querySelectorAll(
+                ".history-controls button"
+            )
+            .forEach(
+                button =>
+                    button.classList.remove("active")
+            );
+
+        document
+            .getElementById(`days-${days}`)
+            .classList.add("active");
+
+        try {
+
+            const response =
+                await fetch(
+                    `/projects/${encodeURIComponent(project)}/metrics/history?metric=wip&days=${days}`
+                );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Failed to load historical metrics"
+                );
+            }
+
+            const data =
+                await response.json();
+
+            renderWipChart(data);
+
+        } catch (error) {
+
+            chart.innerHTML = "";
+
+            status.textContent = "";
+
+            errorContainer.textContent =
+                "Error loading historical metrics: " +
+                error.message;
+        }
+    }
+
+
+    function renderWipChart(data) {
+
+        const chart =
+            document.getElementById("wip-chart");
+
+        const status =
+            document.getElementById("history-status");
+
+        chart.innerHTML = "";
+
+        if (
+            !data.points ||
+            data.points.length === 0
+        ) {
+
+            status.textContent =
+                "No historical data available.";
+
+            return;
+        }
+
+        const points = data.points;
+
+        const width = 1000;
+        const height = 350;
+
+        const paddingLeft = 55;
+        const paddingRight = 25;
+        const paddingTop = 20;
+        const paddingBottom = 50;
+
+        const chartWidth =
+            width -
+            paddingLeft -
+            paddingRight;
+
+        const chartHeight =
+            height -
+            paddingTop -
+            paddingBottom;
+
+        const values =
+            points.map(point => point.value);
+
+        const maxValue =
+            Math.max(...values, 1);
+
+        const svgNS =
+            "http://www.w3.org/2000/svg";
+
+
+        function createElement(
+            name,
+            attributes = {}
+        ) {
+
+            const element =
+                document.createElementNS(
+                    svgNS,
+                    name
+                );
+
+            for (
+                const [key, value]
+                of Object.entries(attributes)
+            ) {
+                element.setAttribute(
+                    key,
+                    value
+                );
+            }
+
+            return element;
+        }
+
+
+        // Horizontal grid + Y labels
+
+        const gridSteps =
+            Math.min(5, maxValue);
+
+        for (
+            let i = 0;
+            i <= gridSteps;
+            i++
+        ) {
+
+            const value =
+                (maxValue / gridSteps) * i;
+
+            const y =
+                paddingTop +
+                chartHeight -
+                (value / maxValue) *
+                    chartHeight;
+
+            const line =
+                createElement(
+                    "line",
+                    {
+                        x1: paddingLeft,
+                        y1: y,
+                        x2: width - paddingRight,
+                        y2: y,
+                        stroke: "#e5e5e5"
+                    }
+                );
+
+            chart.appendChild(line);
+
+            const label =
+                createElement(
+                    "text",
+                    {
+                        x: paddingLeft - 10,
+                        y: y + 4,
+                        "text-anchor": "end",
+                        "font-size": "12",
+                        fill: "#777"
+                    }
+                );
+
+            label.textContent =
+                Math.round(value);
+
+            chart.appendChild(label);
+        }
+
+
+        // Calculate points
+
+        const svgPoints =
+            points.map((point, index) => {
+
+                const x =
+                    points.length === 1
+                        ? paddingLeft +
+                          chartWidth / 2
+                        : paddingLeft +
+                          (index /
+                              (points.length - 1)) *
+                              chartWidth;
+
+                const y =
+                    paddingTop +
+                    chartHeight -
+                    (point.value / maxValue) *
+                        chartHeight;
+
+                return {
+                    x,
+                    y,
+                    date: point.date,
+                    value: point.value
+                };
+            });
+
+
+        // Line
+
+        const polyline =
+            createElement(
+                "polyline",
+                {
+                    points: svgPoints
+                        .map(
+                            point =>
+                                `${point.x},${point.y}`
+                        )
+                        .join(" "),
+                    fill: "none",
+                    stroke: "#222",
+                    "stroke-width": "3",
+                    "stroke-linejoin": "round",
+                    "stroke-linecap": "round"
+                }
+            );
+
+        chart.appendChild(polyline);
+
+
+        // Points + tooltips
+
+        svgPoints.forEach(point => {
+
+            const circle =
+                createElement(
+                    "circle",
+                    {
+                        cx: point.x,
+                        cy: point.y,
+                        r: 5,
+                        fill: "#222"
+                    }
+                );
+
+            const tooltip =
+                createElement("title");
+
+            tooltip.textContent =
+                `${point.date}: ${point.value} items`;
+
+            circle.appendChild(tooltip);
+
+            chart.appendChild(circle);
+        });
+
+
+        // X labels
+
+        const labelStep =
+            Math.max(
+                1,
+                Math.ceil(points.length / 7)
+            );
+
+        svgPoints.forEach(
+            (point, index) => {
+
+                if (
+                    index % labelStep !== 0 &&
+                    index !== points.length - 1
+                ) {
+                    return;
+                }
+
+                const label =
+                    createElement(
+                        "text",
+                        {
+                            x: point.x,
+                            y: height - 15,
+                            "text-anchor": "middle",
+                            "font-size": "12",
+                            fill: "#777"
+                        }
+                    );
+
+                label.textContent =
+                    formatChartDate(point.date);
+
+                chart.appendChild(label);
+            }
+        );
+
+
+        status.textContent =
+            `WIP history · ${points.length} days`;
+    }
+
+
+    function formatChartDate(dateString) {
+
+        const date =
+            new Date(
+                `${dateString}T00:00:00`
+            );
+
+        return date.toLocaleDateString(
+            undefined,
+            {
+                month: "short",
+                day: "numeric"
+            }
+        );
+    }
+
+
     async function initializeDashboard() {
 
         try {
 
             await loadAvailableMetrics();
 
+            await loadMetrics();
+
+            await loadHistoricalMetrics(14);
+
         } catch (error) {
 
-            document.getElementById("error").textContent =
-                "Error loading available metrics: " + error.message;
+            document.getElementById("error")
+                .textContent =
+                    "Error initializing dashboard: " +
+                    error.message;
         }
     }
 

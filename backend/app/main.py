@@ -1,6 +1,8 @@
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
+from datetime import date, timedelta
+from app.metrics.historical import HistoricalMetrics
 
 from app.connectors.jira.connector import JiraConnector
 from app.metrics.engine import MetricEngine
@@ -52,4 +54,38 @@ def project_metrics(
     return service.calculate(
         project=project,
         metric_names=metric_names,
+    )
+
+@app.get("/projects/{project}/metrics/history")
+def project_metrics_history(
+    project: str,
+    metric: str = "wip",
+    days: int = 14,
+):
+    connector = JiraConnector()
+
+    work_items = connector.get_work_items(project)
+
+    history = []
+
+    for item in work_items:
+        history.extend(
+            connector.get_work_item_history(item.id)
+        )
+
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days - 1)
+
+    historical = HistoricalMetrics()
+
+    if metric == "wip":
+        return historical.calculate_wip(
+            work_items=work_items,
+            histories=history,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    raise ValueError(
+        f"Unsupported historical metric: {metric}"
     )
