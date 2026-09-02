@@ -28,6 +28,35 @@
             margin-bottom: 30px;
         }
 
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .controls input {
+            padding: 10px;
+            font-size: 16px;
+            width: 120px;
+        }
+
+        .controls button {
+            padding: 10px 16px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .category {
+            margin-bottom: 35px;
+        }
+
+        .category-title {
+            font-size: 22px;
+            margin-bottom: 15px;
+            text-transform: capitalize;
+        }
+
         .metrics {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -57,28 +86,6 @@
             color: #777;
         }
 
-        .error {
-            margin-top: 20px;
-            color: #b00020;
-        }
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-
-        .controls input {
-            padding: 10px;
-            font-size: 16px;
-            width: 120px;
-        }
-
-        .controls button {
-            padding: 10px 16px;
-            font-size: 16px;
-            cursor: pointer;
-        }
         .sample {
             font-size: 13px;
             color: #888;
@@ -91,6 +98,23 @@
             margin-top: 15px;
             line-height: 1.4;
         }
+
+        .error {
+            margin-top: 20px;
+            color: #b00020;
+        }
+
+        @media (max-width: 800px) {
+            .metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 550px) {
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -99,13 +123,14 @@
 <div class="container">
 
     <h1>AI Delivery Dashboard</h1>
+
     <div class="controls">
         <label for="project">Project:</label>
         <input id="project" type="text" value="KAN">
         <button onclick="loadMetrics()">Load Metrics</button>
     </div>
 
-    <div id="metrics" class="metrics">
+    <div id="metrics">
         Loading...
     </div>
 
@@ -133,39 +158,96 @@
             const data = await response.json();
 
             const container = document.getElementById("metrics");
+            const errorContainer = document.getElementById("error");
 
             container.innerHTML = "";
+            errorContainer.textContent = "";
+
+            // Group metrics by category
+            const categories = {};
 
             for (const [name, metric] of Object.entries(data)) {
+                const category = metric.category || "other";
 
-                const card = document.createElement("div");
-                card.className = "card";
+                if (!categories[category]) {
+                    categories[category] = [];
+                }
 
-                const title = name
-                    .replaceAll("_", " ")
-                    .toUpperCase();
+                categories[category].push({
+                    name,
+                    ...metric
+                });
+            }
 
-                const value = metric.value === null
-                    ? "N/A"
-                    : metric.value;
+            // Preferred category order
+            const categoryOrder = [
+                "snapshot",
+                "flow",
+                "planning",
+                "business",
+                "team",
+                "other"
+            ];
 
-                const sampleText = metric.sample_size
-                    ? `Sample: ${metric.sample_size} items`
-                    : "No completed items";
+            const sortedCategories = Object.keys(categories).sort((a, b) => {
+                const indexA = categoryOrder.indexOf(a);
+                const indexB = categoryOrder.indexOf(b);
 
-                const unitText = metric.value === null
-                    ? "No completed cycles"
-                    : metric.unit;
+                return (
+                    (indexA === -1 ? 999 : indexA) -
+                    (indexB === -1 ? 999 : indexB)
+                );
+            });
 
-                card.innerHTML = `
-                    <h2>${title}</h2>
-                    <div class="value">${value}</div>
-                    <div class="unit">${unitText}</div>
-                    <div class="sample">${sampleText}</div>
-                    <div class="description">${metric.description}</div>
-                `;
+            // Render categories
+            for (const category of sortedCategories) {
 
-                container.appendChild(card);
+                const categorySection = document.createElement("div");
+                categorySection.className = "category";
+
+                const categoryTitle = document.createElement("h2");
+                categoryTitle.className = "category-title";
+                categoryTitle.textContent = category;
+
+                const metricsGrid = document.createElement("div");
+                metricsGrid.className = "metrics";
+
+                for (const metric of categories[category]) {
+
+                    const card = document.createElement("div");
+                    card.className = "card";
+
+                    const title = metric.name
+                        .replaceAll("_", " ")
+                        .toUpperCase();
+
+                    const value = metric.value === null
+                        ? "N/A"
+                        : metric.value;
+
+                    const sampleText = metric.sample_size
+                        ? `Sample: ${metric.sample_size} items`
+                        : "No completed items";
+
+                    const unitText = metric.value === null
+                        ? "No completed cycles"
+                        : metric.unit;
+
+                    card.innerHTML = `
+                        <h2>${title}</h2>
+                        <div class="value">${value}</div>
+                        <div class="unit">${unitText}</div>
+                        <div class="sample">${sampleText}</div>
+                        <div class="description">${metric.description}</div>
+                    `;
+
+                    metricsGrid.appendChild(card);
+                }
+
+                categorySection.appendChild(categoryTitle);
+                categorySection.appendChild(metricsGrid);
+
+                container.appendChild(categorySection);
             }
 
         } catch (error) {
