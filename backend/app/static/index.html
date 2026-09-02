@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Delivery Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f6f8;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            font-size: 16px;
+            margin-top: 0;
+            color: #666;
+        }
+
+        .value {
+            font-size: 42px;
+            font-weight: bold;
+            margin: 15px 0 5px;
+        }
+
+        .unit {
+            color: #777;
+        }
+
+        .error {
+            margin-top: 20px;
+            color: #b00020;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>AI Delivery Dashboard</h1>
+    <div class="subtitle">Project: KAN</div>
+
+    <div id="metrics" class="metrics">
+        Loading...
+    </div>
+
+    <div id="error" class="error"></div>
+
+</div>
+
+<script>
+    async function loadMetrics() {
+        try {
+            const response = await fetch("/projects/KAN/metrics");
+
+            if (!response.ok) {
+                throw new Error("Failed to load metrics");
+            }
+
+            const data = await response.json();
+
+            const container = document.getElementById("metrics");
+
+            container.innerHTML = "";
+
+            for (const [name, metric] of Object.entries(data)) {
+
+                const card = document.createElement("div");
+                card.className = "card";
+
+                const title = name
+                    .replaceAll("_", " ")
+                    .toUpperCase();
+
+                const value = metric.value === null
+                    ? "N/A"
+                    : metric.value;
+
+                card.innerHTML = `
+                    <h2>${title}</h2>
+                    <div class="value">${value}</div>
+                    <div class="unit">${metric.unit}</div>
+                `;
+
+                container.appendChild(card);
+            }
+
+        } catch (error) {
+            document.getElementById("error").textContent =
+                "Error loading metrics: " + error.message;
+        }
+    }
+
+    loadMetrics();
+</script>
+
+</body>
+</html>

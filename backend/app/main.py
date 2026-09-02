@@ -1,16 +1,20 @@
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app.connectors.jira.connector import JiraConnector
 from app.metrics.engine import MetricEngine
 from app.metrics.registry import get_default_registry
 from app.services.delivery_metrics import DeliveryMetricsService
 
-
 app = FastAPI(
     title="AI Delivery Dashboard",
     version="0.1.0",
 )
-
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+@app.get("/")
+def dashboard():
+    return FileResponse("app/static/index.html")
 
 @app.get("/health")
 def health():
