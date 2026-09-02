@@ -42,6 +42,11 @@
             cursor: pointer;
         }
 
+        .controls button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .metric-selector {
             background: white;
             padding: 20px;
@@ -158,7 +163,7 @@
     <div class="controls">
         <label for="project">Project:</label>
         <input id="project" type="text" value="KAN">
-        <button onclick="loadMetrics()">Load Metrics</button>
+        <button id="load-button" onclick="loadMetrics()">Load Metrics</button>
     </div>
 
     <div id="metric-selector" class="metric-selector">
@@ -176,7 +181,9 @@
 
     let availableMetrics = [];
 
+
     async function loadAvailableMetrics() {
+
         const response = await fetch("/metrics");
 
         if (!response.ok) {
@@ -192,6 +199,7 @@
 
 
     function renderMetricSelector() {
+
         const selector = document.getElementById("metric-selector");
 
         selector.innerHTML = "<h2>Metrics</h2>";
@@ -199,6 +207,7 @@
         const categories = {};
 
         for (const metric of availableMetrics) {
+
             const category = metric.category || "other";
 
             if (!categories[category]) {
@@ -218,6 +227,7 @@
         ];
 
         const sortedCategories = Object.keys(categories).sort((a, b) => {
+
             const indexA = categoryOrder.indexOf(a);
             const indexB = categoryOrder.indexOf(b);
 
@@ -226,6 +236,7 @@
                 (indexB === -1 ? 999 : indexB)
             );
         });
+
 
         for (const category of sortedCategories) {
 
@@ -238,17 +249,20 @@
 
             categoryContainer.appendChild(categoryTitle);
 
+
             for (const metric of categories[category]) {
 
                 const label = document.createElement("label");
                 label.className = "metric-option";
 
                 const checkbox = document.createElement("input");
+
                 checkbox.type = "checkbox";
                 checkbox.value = metric.name;
                 checkbox.checked = true;
 
                 label.appendChild(checkbox);
+
 
                 const text = document.createTextNode(
                     metric.name
@@ -267,6 +281,7 @@
 
 
     function getSelectedMetrics() {
+
         const checkboxes = document.querySelectorAll(
             '#metric-selector input[type="checkbox"]:checked'
         );
@@ -278,15 +293,19 @@
 
 
     async function loadMetrics() {
+
         const container = document.getElementById("metrics");
         const errorContainer = document.getElementById("error");
+        const button = document.getElementById("load-button");
 
         try {
+
             const project = document.getElementById("project").value.trim();
 
             if (!project) {
                 throw new Error("Project is required");
             }
+
 
             const selectedMetrics = getSelectedMetrics();
 
@@ -294,23 +313,44 @@
                 throw new Error("Select at least one metric");
             }
 
-            // Show loading state
+
+            // Start loading state
+
+            button.disabled = true;
+            button.textContent = "Loading...";
+
             container.innerHTML = "Loading...";
             errorContainer.textContent = "";
 
+
+            // Build query parameters
+
+            const query = selectedMetrics
+                .map(metric =>
+                    `metric_names=${encodeURIComponent(metric)}`
+                )
+                .join("&");
+
+
+            // Request only selected metrics
+
             const response = await fetch(
-                `/projects/${encodeURIComponent(project)}/metrics`
+                `/projects/${encodeURIComponent(project)}/metrics?${query}`
             );
+
 
             if (!response.ok) {
                 throw new Error("Failed to load metrics");
             }
 
+
             const data = await response.json();
 
             container.innerHTML = "";
 
+
             const categories = {};
+
 
             for (const [name, metric] of Object.entries(data)) {
 
@@ -318,17 +358,21 @@
                     continue;
                 }
 
+
                 const category = metric.category || "other";
+
 
                 if (!categories[category]) {
                     categories[category] = [];
                 }
+
 
                 categories[category].push({
                     name,
                     ...metric
                 });
             }
+
 
             const categoryOrder = [
                 "snapshot",
@@ -339,7 +383,9 @@
                 "other"
             ];
 
+
             const sortedCategories = Object.keys(categories).sort((a, b) => {
+
                 const indexA = categoryOrder.indexOf(a);
                 const indexB = categoryOrder.indexOf(b);
 
@@ -349,38 +395,47 @@
                 );
             });
 
+
             for (const category of sortedCategories) {
 
                 const categorySection = document.createElement("div");
                 categorySection.className = "category";
 
+
                 const categoryTitle = document.createElement("h2");
                 categoryTitle.className = "category-title";
                 categoryTitle.textContent = category;
 
+
                 const metricsGrid = document.createElement("div");
                 metricsGrid.className = "metrics";
+
 
                 for (const metric of categories[category]) {
 
                     const card = document.createElement("div");
                     card.className = "card";
 
+
                     const title = metric.name
                         .replaceAll("_", " ")
                         .toUpperCase();
+
 
                     const value = metric.value === null
                         ? "N/A"
                         : metric.value;
 
+
                     const sampleText = metric.sample_size
                         ? `Sample: ${metric.sample_size} items`
                         : "No completed items";
 
+
                     const unitText = metric.value === null
                         ? "No completed cycles"
                         : metric.unit;
+
 
                     card.innerHTML = `
                         <h2>${title}</h2>
@@ -390,8 +445,10 @@
                         <div class="description">${metric.description}</div>
                     `;
 
+
                     metricsGrid.appendChild(card);
                 }
+
 
                 categorySection.appendChild(categoryTitle);
                 categorySection.appendChild(metricsGrid);
@@ -400,20 +457,33 @@
             }
 
         } catch (error) {
+
             container.innerHTML = "";
+
             errorContainer.textContent =
                 "Error loading metrics: " + error.message;
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Load Metrics";
         }
     }
 
+
     async function initializeDashboard() {
+
         try {
+
             await loadAvailableMetrics();
+
         } catch (error) {
+
             document.getElementById("error").textContent =
                 "Error loading available metrics: " + error.message;
         }
     }
+
 
     initializeDashboard();
 

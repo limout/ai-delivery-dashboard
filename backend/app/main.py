@@ -1,5 +1,5 @@
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
 
 from app.connectors.jira.connector import JiraConnector
@@ -38,14 +38,12 @@ def metrics():
     }
 
 @app.get("/projects/{project}/metrics")
-
-def project_metrics(project: str):
+def project_metrics(
+    project: str,
+    metric_names: list[str] = Query(...),
+):
     connector = JiraConnector()
-
-    engine = MetricEngine(
-        get_default_registry()
-    )
-
+    engine = MetricEngine(get_default_registry())
     service = DeliveryMetricsService(
         connector=connector,
         metric_engine=engine,
@@ -53,10 +51,5 @@ def project_metrics(project: str):
 
     return service.calculate(
         project=project,
-        metric_names=[
-            "throughput",
-            "cycle_time",
-            "lead_time",
-            "wip",
-        ],
+        metric_names=metric_names,
     )
