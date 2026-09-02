@@ -57,5 +57,6 @@ def project_metrics(project: str):
             "throughput",
             "cycle_time",
             "lead_time",
+            "wip",
         ],
     )
