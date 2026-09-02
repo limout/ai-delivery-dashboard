@@ -18,6 +18,7 @@ class MetricEngine:
         data_sources = {
             "work_items": work_items,
             "history": history,
+            "work_items_and_history": (work_items, history),
         }
 
         for name in metric_names:

@@ -20,6 +20,10 @@ class FakeConnector:
                 type="Task",
                 title="First",
                 status="Done",
+                created_at=datetime(
+                    2026, 8, 20, 9, 0,
+                    tzinfo=timezone.utc,
+                ),
             ),
             WorkItem(
                 id="2",
@@ -28,7 +32,11 @@ class FakeConnector:
                 type="Task",
                 title="Second",
                 status="Done",
-            ),
+                created_at=datetime(
+                    2026, 8, 20, 9, 0,
+                    tzinfo=timezone.utc,
+                ),
+            )
         ]
 
     def get_work_item_history(self, work_item_id):
@@ -105,4 +113,4 @@ def test_delivery_metrics_service():
 
     assert result["throughput"]["value"] == 2
     assert result["cycle_time"]["value"] == 3.5
-    assert result["lead_time"]["value"] == 3.5
+    assert result["lead_time"]["value"] == 4.0

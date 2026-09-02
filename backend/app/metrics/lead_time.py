@@ -1,18 +1,19 @@
+from app.core.models.work_item import WorkItem
 from app.core.models.work_item_history import WorkItemHistory
 from app.metrics.base import Metric
 
 
 class LeadTimeMetric(Metric):
     name = "lead_time"
-    description = "Average time from the first workflow status to Done."
+    description = "Average time from creation to Done."
     category = "flow"
-    required_data = "history"
+    required_data = "work_items_and_history"
 
     def calculate(
         self,
-        histories: list[WorkItemHistory],
+        data: tuple[list[WorkItem], list[WorkItemHistory]],
     ) -> dict:
-        durations = []
+        work_items, histories = data
 
         histories_by_item: dict[str, list[WorkItemHistory]] = {}
 
@@ -22,32 +23,35 @@ class LeadTimeMetric(Metric):
                 [],
             ).append(event)
 
-        for item_history in histories_by_item.values():
-            ordered = sorted(
-                item_history,
-                key=lambda item: item.timestamp,
+        durations = []
+
+        for work_item in work_items:
+            item_history = histories_by_item.get(
+                work_item.id,
+                [],
             )
 
-            started_at = None
             completed_at = None
 
-            for event in ordered:
-                if event.field != "status":
-                    continue
-
-                if started_at is None:
-                    started_at = event.timestamp
-
-                if event.to_value == "Done":
+            for event in sorted(
+                item_history,
+                key=lambda item: item.timestamp,
+            ):
+                if (
+                    event.field == "status"
+                    and event.to_value == "Done"
+                ):
                     completed_at = event.timestamp
                     break
 
-            if started_at is not None and completed_at is not None:
-                duration = (
-                    completed_at - started_at
-                ).total_seconds() / 86400
+            if completed_at is None:
+                continue
 
-                durations.append(duration)
+            duration = (
+                completed_at - work_item.created_at
+            ).total_seconds() / 86400
+
+            durations.append(duration)
 
         if not durations:
             return {
