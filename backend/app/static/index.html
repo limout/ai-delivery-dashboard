@@ -167,13 +167,46 @@
             border-radius: 6px;
         }
 
+        .history-controls {
+            flex-wrap: wrap;
+        }
+
         .history-controls button.active {
             font-weight: bold;
             background: #eee;
         }
 
+        .history-metric-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .history-metric-selector button {
+            padding: 8px 14px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .history-metric-selector button.active {
+            font-weight: bold;
+            background: #eee;
+        }
+
+        .history-chart-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
         .chart-wrapper {
             width: 100%;
+            overflow-x: auto;
         }
 
         .chart {
@@ -274,9 +307,44 @@
             </div>
         </div>
 
+        <div class="history-metric-selector">
+            <button
+                id="history-metric-wip"
+                class="active"
+                onclick="selectHistoricalMetric('wip')"
+            >
+                WIP
+            </button>
+
+            <button
+                id="history-metric-throughput"
+                onclick="selectHistoricalMetric('throughput')"
+            >
+                Throughput
+            </button>
+
+            <button
+                id="history-metric-cycle_time"
+                onclick="selectHistoricalMetric('cycle_time')"
+            >
+                Cycle Time
+            </button>
+
+            <button
+                id="history-metric-lead_time"
+                onclick="selectHistoricalMetric('lead_time')"
+            >
+                Lead Time
+            </button>
+        </div>
+
+        <div id="history-chart-title" class="history-chart-title">
+            WIP · items
+        </div>
+
         <div class="chart-wrapper">
             <svg
-                id="wip-chart"
+                id="history-chart"
                 class="chart"
                 viewBox="0 0 1000 350"
                 preserveAspectRatio="none"
@@ -650,6 +718,26 @@
     }
 
 
+    let selectedHistoricalMetric = "wip";
+    let selectedHistoricalDays = 14;
+
+
+    function selectHistoricalMetric(metric) {
+
+        selectedHistoricalMetric = metric;
+
+        document
+            .querySelectorAll(".history-metric-selector button")
+            .forEach(button => button.classList.remove("active"));
+
+        document
+            .getElementById(`history-metric-${metric}`)
+            .classList.add("active");
+
+        loadHistoricalMetrics(selectedHistoricalDays);
+    }
+
+
     async function loadHistoricalMetrics(days = 14) {
 
         const project =
@@ -658,7 +746,7 @@
                 .trim();
 
         const chart =
-            document.getElementById("wip-chart");
+            document.getElementById("history-chart");
 
         const status =
             document.getElementById("history-status");
@@ -674,15 +762,15 @@
             return;
         }
 
+        selectedHistoricalDays = days;
+
         chart.innerHTML = "";
 
         status.textContent =
-            "Loading historical WIP...";
+            `Loading historical ${formatMetricName(selectedHistoricalMetric)}...`;
 
         document
-            .querySelectorAll(
-                ".history-controls button"
-            )
+            .querySelectorAll(".history-controls button")
             .forEach(
                 button =>
                     button.classList.remove("active")
@@ -696,7 +784,9 @@
 
             const response =
                 await fetch(
-                    `/projects/${encodeURIComponent(project)}/metrics/history?metric=wip&days=${days}`
+                    `/projects/${encodeURIComponent(project)}/metrics/history` +
+                    `?metric=${encodeURIComponent(selectedHistoricalMetric)}` +
+                    `&days=${days}`
                 );
 
             if (!response.ok) {
@@ -708,7 +798,7 @@
             const data =
                 await response.json();
 
-            renderWipChart(data);
+            renderHistoricalChart(data);
 
         } catch (error) {
 
@@ -723,20 +813,26 @@
     }
 
 
-    function renderWipChart(data) {
+    function renderHistoricalChart(data) {
 
         const chart =
-            document.getElementById("wip-chart");
+            document.getElementById("history-chart");
 
         const status =
             document.getElementById("history-status");
 
+        const title =
+            document.getElementById("history-chart-title");
+
         chart.innerHTML = "";
 
-        if (
-            !data.points ||
-            data.points.length === 0
-        ) {
+        const metricName =
+            formatMetricName(data.metric);
+
+        title.textContent =
+            `${metricName} · ${data.unit}`;
+
+        if (!data.points || data.points.length === 0) {
 
             status.textContent =
                 "No historical data available.";
@@ -749,7 +845,7 @@
         const width = 1000;
         const height = 350;
 
-        const paddingLeft = 55;
+        const paddingLeft = 60;
         const paddingRight = 25;
         const paddingTop = 20;
         const paddingBottom = 50;
@@ -764,11 +860,31 @@
             paddingTop -
             paddingBottom;
 
-        const values =
-            points.map(point => point.value);
+        const numericValues =
+            points
+                .map(point => point.value)
+                .filter(value =>
+                    value !== null &&
+                    Number.isFinite(value)
+                );
+
+        if (numericValues.length === 0) {
+
+            renderEmptyHistoricalChart(
+                chart,
+                width,
+                height,
+                "No measurable data in this period."
+            );
+
+            status.textContent =
+                `${metricName} history · ${points.length} days · insufficient data`;
+
+            return;
+        }
 
         const maxValue =
-            Math.max(...values, 1);
+            Math.max(...numericValues, 1);
 
         const svgNS =
             "http://www.w3.org/2000/svg";
@@ -789,6 +905,7 @@
                 const [key, value]
                 of Object.entries(attributes)
             ) {
+
                 element.setAttribute(
                     key,
                     value
@@ -802,7 +919,9 @@
         // Horizontal grid + Y labels
 
         const gridSteps =
-            Math.min(5, maxValue);
+            maxValue <= 5
+                ? Math.max(1, Math.ceil(maxValue))
+                : 5;
 
         for (
             let i = 0;
@@ -846,88 +965,123 @@
                 );
 
             label.textContent =
-                Math.round(value);
+                formatHistoricalValue(
+                    value,
+                    data.unit
+                );
 
             chart.appendChild(label);
         }
 
 
-        // Calculate points
+        // Build one SVG path per contiguous sequence.
+        // Null values create gaps instead of fake zeroes.
 
-        const svgPoints =
-            points.map((point, index) => {
+        let currentSegment = [];
 
-                const x =
-                    points.length === 1
-                        ? paddingLeft +
-                          chartWidth / 2
-                        : paddingLeft +
-                          (index /
-                              (points.length - 1)) *
-                              chartWidth;
+        const segments = [];
 
-                const y =
-                    paddingTop +
-                    chartHeight -
-                    (point.value / maxValue) *
-                        chartHeight;
+        points.forEach((point, index) => {
 
-                return {
-                    x,
-                    y,
-                    date: point.date,
-                    value: point.value
-                };
-            });
+            if (
+                point.value === null ||
+                !Number.isFinite(point.value)
+            ) {
 
-
-        // Line
-
-        const polyline =
-            createElement(
-                "polyline",
-                {
-                    points: svgPoints
-                        .map(
-                            point =>
-                                `${point.x},${point.y}`
-                        )
-                        .join(" "),
-                    fill: "none",
-                    stroke: "#222",
-                    "stroke-width": "3",
-                    "stroke-linejoin": "round",
-                    "stroke-linecap": "round"
+                if (currentSegment.length > 0) {
+                    segments.push(currentSegment);
+                    currentSegment = [];
                 }
-            );
 
-        chart.appendChild(polyline);
+                return;
+            }
+
+            const x =
+                points.length === 1
+                    ? paddingLeft +
+                      chartWidth / 2
+                    : paddingLeft +
+                      (index /
+                          (points.length - 1)) *
+                          chartWidth;
+
+            const y =
+                paddingTop +
+                chartHeight -
+                (point.value / maxValue) *
+                    chartHeight;
+
+            currentSegment.push({
+                x,
+                y,
+                date: point.date,
+                value: point.value
+            });
+        });
+
+        if (currentSegment.length > 0) {
+            segments.push(currentSegment);
+        }
+
+
+        // Lines
+
+        segments.forEach(segment => {
+
+            if (segment.length < 2) {
+                return;
+            }
+
+            const polyline =
+                createElement(
+                    "polyline",
+                    {
+                        points: segment
+                            .map(
+                                point =>
+                                    `${point.x},${point.y}`
+                            )
+                            .join(" "),
+                        fill: "none",
+                        stroke: "#222",
+                        "stroke-width": "3",
+                        "stroke-linejoin": "round",
+                        "stroke-linecap": "round"
+                    }
+                );
+
+            chart.appendChild(polyline);
+        });
 
 
         // Points + tooltips
 
-        svgPoints.forEach(point => {
+        segments.forEach(segment => {
 
-            const circle =
-                createElement(
-                    "circle",
-                    {
-                        cx: point.x,
-                        cy: point.y,
-                        r: 5,
-                        fill: "#222"
-                    }
-                );
+            segment.forEach(point => {
 
-            const tooltip =
-                createElement("title");
+                const circle =
+                    createElement(
+                        "circle",
+                        {
+                            cx: point.x,
+                            cy: point.y,
+                            r: 5,
+                            fill: "#222"
+                        }
+                    );
 
-            tooltip.textContent =
-                `${point.date}: ${point.value} items`;
+                const tooltip =
+                    createElement("title");
 
-            circle.appendChild(tooltip);
+                tooltip.textContent =
+                    `${formatChartDate(point.date)}: ` +
+                    `${formatHistoricalValue(point.value, data.unit)}`;
 
-            chart.appendChild(circle);
+                circle.appendChild(tooltip);
+
+                chart.appendChild(circle);
+            });
         });
 
 
@@ -939,7 +1093,7 @@
                 Math.ceil(points.length / 7)
             );
 
-        svgPoints.forEach(
+        points.forEach(
             (point, index) => {
 
                 if (
@@ -949,11 +1103,20 @@
                     return;
                 }
 
+                const x =
+                    points.length === 1
+                        ? paddingLeft +
+                          chartWidth / 2
+                        : paddingLeft +
+                          (index /
+                              (points.length - 1)) *
+                              chartWidth;
+
                 const label =
                     createElement(
                         "text",
                         {
-                            x: point.x,
+                            x,
                             y: height - 15,
                             "text-anchor": "middle",
                             "font-size": "12",
@@ -969,8 +1132,91 @@
         );
 
 
+        const measurableDays =
+            numericValues.length;
+
         status.textContent =
-            `WIP history · ${points.length} days`;
+            `${metricName} history · ${points.length} days · ` +
+            `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
+    }
+
+
+    function renderEmptyHistoricalChart(
+        chart,
+        width,
+        height,
+        message
+    ) {
+
+        const svgNS =
+            "http://www.w3.org/2000/svg";
+
+        const text =
+            document.createElementNS(
+                svgNS,
+                "text"
+            );
+
+        text.setAttribute(
+            "x",
+            width / 2
+        );
+
+        text.setAttribute(
+            "y",
+            height / 2
+        );
+
+        text.setAttribute(
+            "text-anchor",
+            "middle"
+        );
+
+        text.setAttribute(
+            "font-size",
+            "15"
+        );
+
+        text.setAttribute(
+            "fill",
+            "#777"
+        );
+
+        text.textContent = message;
+
+        chart.appendChild(text);
+    }
+
+
+    function formatMetricName(metric) {
+
+        return metric
+            .replaceAll("_", " ")
+            .replace(
+                /\b\w/g,
+                letter =>
+                    letter.toUpperCase()
+            );
+    }
+
+
+    function formatHistoricalValue(
+        value,
+        unit
+    ) {
+
+        if (value === null) {
+            return "N/A";
+        }
+
+        if (unit === "days") {
+
+            return Number(value)
+                .toFixed(2);
+        }
+
+        return Math.round(value)
+            .toString();
     }
 
 
