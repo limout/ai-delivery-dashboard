@@ -11,11 +11,7 @@ class DeliveryMetricsService:
         self.connector = connector
         self.metric_engine = metric_engine
 
-    def calculate(
-        self,
-        project: str,
-        metric_names: list[str],
-    ) -> dict:
+    def calculate(self, project: str, metric_names: list[str]) -> dict:
         work_items = self.connector.get_work_items(project)
 
         history = []
@@ -25,8 +21,16 @@ class DeliveryMetricsService:
                 self.connector.get_work_item_history(item.id)
             )
 
-        return self.metric_engine.calculate(
+        results = self.metric_engine.calculate(
             work_items=work_items,
             history=history,
             metric_names=metric_names,
         )
+
+        for name in metric_names:
+            metric = self.metric_engine.registry.get(name)
+
+            results[name]["category"] = metric.category
+            results[name]["description"] = metric.description
+
+        return results
