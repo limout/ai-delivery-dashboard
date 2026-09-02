@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app.core.models.work_item_history import WorkItemHistory
 from app.metrics.base import Metric
-
+from app.metrics.data_quality import DataQuality
 
 class CycleTimeMetric(Metric):
     name = "cycle_time"
@@ -50,18 +50,30 @@ class CycleTimeMetric(Metric):
                     started_at = None
 
         if not durations:
+            quality = DataQuality(
+                status="insufficient_data",
+                message="No work items have both In Progress and Done history.",
+            )
+
             return {
                 "metric": self.name,
                 "value": None,
                 "unit": "days",
                 "sample_size": 0,
+                "data_quality": quality.model_dump(),
             }
 
         average = sum(durations) / len(durations)
+
+        quality = DataQuality(
+            status="good",
+            message="Sufficient data available.",
+        )
 
         return {
             "metric": self.name,
             "value": round(average, 2),
             "unit": "days",
             "sample_size": len(durations),
+            "data_quality": quality.model_dump(),
         }
