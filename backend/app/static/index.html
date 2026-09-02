@@ -23,16 +23,11 @@
             margin-bottom: 8px;
         }
 
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-        }
-
         .controls {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .controls input {
@@ -47,20 +42,56 @@
             cursor: pointer;
         }
 
-        .category {
-            margin-bottom: 35px;
+        .metric-selector {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .metric-selector h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .category-selector {
+            margin-bottom: 20px;
+        }
+
+        .category-selector:last-child {
+            margin-bottom: 0;
         }
 
         .category-title {
-            font-size: 22px;
-            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: bold;
             text-transform: capitalize;
+            margin-bottom: 10px;
+        }
+
+        .metric-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 20px;
+            margin-bottom: 10px;
+            cursor: pointer;
         }
 
         .metrics {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 20px;
+        }
+
+        .category {
+            margin-bottom: 35px;
+        }
+
+        .category > .category-title {
+            font-size: 22px;
+            margin-bottom: 15px;
         }
 
         .card {
@@ -130,22 +161,142 @@
         <button onclick="loadMetrics()">Load Metrics</button>
     </div>
 
-    <div id="metrics">
-        Loading...
+    <div id="metric-selector" class="metric-selector">
+        <h2>Metrics</h2>
+        Loading available metrics...
     </div>
+
+    <div id="metrics"></div>
 
     <div id="error" class="error"></div>
 
 </div>
 
 <script>
+
+    let availableMetrics = [];
+
+    async function loadAvailableMetrics() {
+        const response = await fetch("/metrics");
+
+        if (!response.ok) {
+            throw new Error("Failed to load available metrics");
+        }
+
+        const data = await response.json();
+
+        availableMetrics = data.available_metrics;
+
+        renderMetricSelector();
+    }
+
+
+    function renderMetricSelector() {
+        const selector = document.getElementById("metric-selector");
+
+        selector.innerHTML = "<h2>Metrics</h2>";
+
+        const categories = {};
+
+        for (const metric of availableMetrics) {
+            const category = metric.category || "other";
+
+            if (!categories[category]) {
+                categories[category] = [];
+            }
+
+            categories[category].push(metric);
+        }
+
+        const categoryOrder = [
+            "snapshot",
+            "flow",
+            "planning",
+            "business",
+            "team",
+            "other"
+        ];
+
+        const sortedCategories = Object.keys(categories).sort((a, b) => {
+            const indexA = categoryOrder.indexOf(a);
+            const indexB = categoryOrder.indexOf(b);
+
+            return (
+                (indexA === -1 ? 999 : indexA) -
+                (indexB === -1 ? 999 : indexB)
+            );
+        });
+
+        for (const category of sortedCategories) {
+
+            const categoryContainer = document.createElement("div");
+            categoryContainer.className = "category-selector";
+
+            const categoryTitle = document.createElement("div");
+            categoryTitle.className = "category-title";
+            categoryTitle.textContent = category;
+
+            categoryContainer.appendChild(categoryTitle);
+
+            for (const metric of categories[category]) {
+
+                const label = document.createElement("label");
+                label.className = "metric-option";
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = metric.name;
+                checkbox.checked = true;
+
+                label.appendChild(checkbox);
+
+                const text = document.createTextNode(
+                    metric.name
+                        .replaceAll("_", " ")
+                        .replace(/\b\w/g, letter => letter.toUpperCase())
+                );
+
+                label.appendChild(text);
+
+                categoryContainer.appendChild(label);
+            }
+
+            selector.appendChild(categoryContainer);
+        }
+    }
+
+
+    function getSelectedMetrics() {
+        const checkboxes = document.querySelectorAll(
+            '#metric-selector input[type="checkbox"]:checked'
+        );
+
+        return Array.from(checkboxes).map(
+            checkbox => checkbox.value
+        );
+    }
+
+
     async function loadMetrics() {
+        const container = document.getElementById("metrics");
+        const errorContainer = document.getElementById("error");
+
         try {
             const project = document.getElementById("project").value.trim();
 
             if (!project) {
                 throw new Error("Project is required");
             }
+
+            const selectedMetrics = getSelectedMetrics();
+
+            if (selectedMetrics.length === 0) {
+                throw new Error("Select at least one metric");
+            }
+
+            // Show loading state
+            container.innerHTML = "Loading...";
+            errorContainer.textContent = "";
 
             const response = await fetch(
                 `/projects/${encodeURIComponent(project)}/metrics`
@@ -157,16 +308,16 @@
 
             const data = await response.json();
 
-            const container = document.getElementById("metrics");
-            const errorContainer = document.getElementById("error");
-
             container.innerHTML = "";
-            errorContainer.textContent = "";
 
-            // Group metrics by category
             const categories = {};
 
             for (const [name, metric] of Object.entries(data)) {
+
+                if (!selectedMetrics.includes(name)) {
+                    continue;
+                }
+
                 const category = metric.category || "other";
 
                 if (!categories[category]) {
@@ -179,7 +330,6 @@
                 });
             }
 
-            // Preferred category order
             const categoryOrder = [
                 "snapshot",
                 "flow",
@@ -199,7 +349,6 @@
                 );
             });
 
-            // Render categories
             for (const category of sortedCategories) {
 
                 const categorySection = document.createElement("div");
@@ -251,12 +400,23 @@
             }
 
         } catch (error) {
-            document.getElementById("error").textContent =
+            container.innerHTML = "";
+            errorContainer.textContent =
                 "Error loading metrics: " + error.message;
         }
     }
 
-    loadMetrics();
+    async function initializeDashboard() {
+        try {
+            await loadAvailableMetrics();
+        } catch (error) {
+            document.getElementById("error").textContent =
+                "Error loading available metrics: " + error.message;
+        }
+    }
+
+    initializeDashboard();
+
 </script>
 
 </body>
