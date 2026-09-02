@@ -79,6 +79,18 @@
             font-size: 16px;
             cursor: pointer;
         }
+        .sample {
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        .description {
+            font-size: 13px;
+            color: #666;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 
@@ -137,10 +149,20 @@
                     ? "N/A"
                     : metric.value;
 
+                const sampleText = metric.sample_size
+                    ? `Sample: ${metric.sample_size} items`
+                    : "No completed items";
+
+                const unitText = metric.value === null
+                    ? "No completed cycles"
+                    : metric.unit;
+
                 card.innerHTML = `
                     <h2>${title}</h2>
                     <div class="value">${value}</div>
-                    <div class="unit">${metric.unit}</div>
+                    <div class="unit">${unitText}</div>
+                    <div class="sample">${sampleText}</div>
+                    <div class="description">${metric.description}</div>
                 `;
 
                 container.appendChild(card);
