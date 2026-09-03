@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from app.core.models.work_item import WorkItem
+from app.core.models.work_item_history import WorkItemHistory
 
 
 class DeliveryConnector(ABC):
@@ -19,8 +20,8 @@ class DeliveryConnector(ABC):
     def get_work_item_history(
         self,
         work_item_id: str,
-    ) -> list[dict]:
-        """Return status/change history for a work item."""
+    ) -> list[WorkItemHistory]:
+        """Return normalized change history for a work item."""
         raise NotImplementedError
 
     @abstractmethod

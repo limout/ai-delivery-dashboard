@@ -47,15 +47,26 @@ class JiraConnector(DeliveryConnector):
         ]
 
     def get_work_items(self, project: str) -> list[WorkItem]:
+        fields = (
+            "summary,status,priority,assignee,"
+            "created,updated,duedate,issuetype,parent"
+        )
+
+        story_points_field = getattr(
+            settings,
+            "jira_story_points_field",
+            "customfield_10016",
+        )
+
+        if story_points_field not in fields.split(","):
+            fields = f"{fields},{story_points_field}"
+
         response = self.session.get(
             f"{self.base_url}/rest/api/3/search/jql",
             params={
                 "jql": f"project = {project} ORDER BY created ASC",
                 "maxResults": 50,
-                "fields": (
-                    "summary,status,priority,assignee,"
-                    "created,updated,duedate,issuetype"
-                ),
+                "fields": fields,
             },
         )
         response.raise_for_status()
@@ -129,6 +140,13 @@ class JiraConnector(DeliveryConnector):
         priority = fields.get("priority")
         assignee = fields.get("assignee")
         issue_type = fields.get("issuetype")
+        parent = fields.get("parent")
+
+        story_points_field = getattr(
+            settings,
+            "jira_story_points_field",
+            "customfield_10016",
+        )
 
         return WorkItem(
             id=issue["key"],
@@ -158,4 +176,18 @@ class JiraConnector(DeliveryConnector):
             created_at=fields.get("created"),
             updated_at=fields.get("updated"),
             due_date=fields.get("duedate"),
+            parent_id=parent.get("key") if parent else None,
+            story_points=_to_story_points(
+                fields.get(story_points_field)
+            ),
         )
+
+
+def _to_story_points(value) -> float | None:
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

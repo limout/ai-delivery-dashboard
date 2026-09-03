@@ -277,7 +277,7 @@
 
     <div id="metrics"></div>
 
-    <div id="history-section" class="history-section">
+    <div id="history-section" class="history-section" data-project-loaded="false" style="display: none;">
 
         <div class="history-header">
             <h2>Historical Metrics</h2>
@@ -464,6 +464,19 @@
                 checkbox.type = "checkbox";
                 checkbox.value = metric.name;
                 checkbox.checked = true;
+                checkbox.addEventListener(
+                    "change",
+                    () => {
+                        const historySection =
+                            document.getElementById("history-section");
+
+                        if (
+                            historySection.dataset.projectLoaded === "true"
+                        ) {
+                            syncHistoricalMetricSelector();
+                        }
+                    }
+                );
 
                 label.appendChild(checkbox);
 
@@ -561,6 +574,11 @@
                 await response.json();
 
             container.innerHTML = "";
+
+            const historySection =
+                document.getElementById("history-section");
+
+            historySection.dataset.projectLoaded = "true";
 
             const categories = {};
 
@@ -702,6 +720,8 @@
                 );
             }
 
+            syncHistoricalMetricSelector(true);
+
         } catch (error) {
 
             container.innerHTML = "";
@@ -721,8 +741,98 @@
     let selectedHistoricalMetric = "wip";
     let selectedHistoricalDays = 14;
 
+    const historicalMetricNames = [
+        "wip",
+        "throughput",
+        "cycle_time",
+        "lead_time"
+    ];
+
+
+    function syncHistoricalMetricSelector(loadData = false) {
+
+        const historySection =
+            document.getElementById("history-section");
+
+        if (
+            historySection.dataset.projectLoaded !== "true"
+        ) {
+            historySection.style.display = "none";
+            return;
+        }
+
+        const historyMetricSelector =
+            document.querySelector(".history-metric-selector");
+
+        const selectedMetrics =
+            getSelectedMetrics();
+
+        const selectedHistoricalMetrics =
+            historicalMetricNames.filter(
+                metric => selectedMetrics.includes(metric)
+            );
+
+        if (selectedHistoricalMetrics.length === 0) {
+
+            historySection.style.display = "none";
+
+            return;
+        }
+
+        historySection.style.display = "block";
+
+        document
+            .querySelectorAll(".history-metric-selector button")
+            .forEach(button => {
+
+                const metric =
+                    button.id.replace(
+                        "history-metric-",
+                        ""
+                    );
+
+                button.style.display =
+                    selectedHistoricalMetrics.includes(metric)
+                        ? "inline-block"
+                        : "none";
+            });
+
+        const currentMetricStillSelected =
+            selectedHistoricalMetrics.includes(
+                selectedHistoricalMetric
+            );
+
+        if (!currentMetricStillSelected) {
+
+            selectedHistoricalMetric =
+                selectedHistoricalMetrics[0];
+        }
+
+        document
+            .querySelectorAll(".history-metric-selector button")
+            .forEach(button => {
+
+                button.classList.toggle(
+                    "active",
+                    button.id ===
+                        `history-metric-${selectedHistoricalMetric}`
+                );
+            });
+
+        if (loadData || !currentMetricStillSelected) {
+            loadHistoricalMetrics(selectedHistoricalDays);
+        }
+    }
+
 
     function selectHistoricalMetric(metric) {
+
+        const selectedMetrics =
+            getSelectedMetrics();
+
+        if (!selectedMetrics.includes(metric)) {
+            return;
+        }
 
         selectedHistoricalMetric = metric;
 
@@ -1243,9 +1353,8 @@
 
             await loadAvailableMetrics();
 
-            await loadMetrics();
-
-            await loadHistoricalMetrics(14);
+            // Do not load project data automatically.
+            // Project data is loaded only after the user clicks Load Metrics.
 
         } catch (error) {
 

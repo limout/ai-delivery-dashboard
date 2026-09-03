@@ -19,3 +19,9 @@ class WorkItem(BaseModel):
     due_date: datetime | None = None
 
     iteration: str | None = None
+
+    # Hierarchy
+    parent_id: str | None = None
+
+    # Scrum / planning
+    story_points: float | None = None

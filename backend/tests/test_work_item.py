@@ -11,9 +11,13 @@ def test_create_work_item():
         status="In Progress",
         priority="High",
         assignee="Eugene",
+        parent_id="KAN-1",
+        story_points=5,
     )
 
     assert item.id == "KAN-8"
     assert item.source == "jira"
     assert item.status == "In Progress"
     assert item.priority == "High"
+    assert item.parent_id == "KAN-1"
+    assert item.story_points == 5
