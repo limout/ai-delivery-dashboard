@@ -13,27 +13,25 @@ class CommitmentVsCompletedMetric(Metric):
             item
             for item in work_items
             if item.delivery_role.value == "planning_item"
+            and item.story_points is not None
+            and item.iteration
         ]
 
         iterations: dict[str, dict[str, float]] = {}
 
         for item in planning_items:
-            if not item.iteration:
-                continue
+            iteration = item.iteration
+            assert iteration is not None
 
-            if item.iteration not in iterations:
-                iterations[item.iteration] = {
-                    "committed": 0.0,
-                    "completed": 0.0,
-                }
+            iterations.setdefault(
+                iteration,
+                {"committed": 0.0, "completed": 0.0},
+            )
 
-            if item.story_points is None:
-                continue
-
-            iterations[item.iteration]["committed"] += item.story_points
+            iterations[iteration]["committed"] += item.story_points
 
             if item.status == "Done":
-                iterations[item.iteration]["completed"] += item.story_points
+                iterations[iteration]["completed"] += item.story_points
 
         if not iterations:
             return {
@@ -46,13 +44,19 @@ class CommitmentVsCompletedMetric(Metric):
                 "iterations": {},
             }
 
-        valid_iterations = {
-            name: data
-            for name, data in iterations.items()
-            if data["committed"] > 0
-        }
+        percentages = []
 
-        if not valid_iterations:
+        for data in iterations.values():
+            if data["committed"] <= 0:
+                continue
+
+            data["completion_percentage"] = round(
+                data["completed"] / data["committed"] * 100,
+                2,
+            )
+            percentages.append(data["completion_percentage"])
+
+        if not percentages:
             return {
                 "metric": self.name,
                 "value": None,
@@ -63,22 +67,13 @@ class CommitmentVsCompletedMetric(Metric):
                 "iterations": iterations,
             }
 
-        percentages = []
-
-        for data in valid_iterations.values():
-            data["completion_percentage"] = round(
-                data["completed"] / data["committed"] * 100,
-                2,
-            )
-            percentages.append(data["completion_percentage"])
-
         average_completion = sum(percentages) / len(percentages)
 
         return {
             "metric": self.name,
             "value": round(average_completion, 2),
             "unit": "percent",
-            "sample_size": len(valid_iterations),
+            "sample_size": len(percentages),
             "status": "ok",
             "iterations": iterations,
         }

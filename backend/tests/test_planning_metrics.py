@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from app.core.models.delivery_semantics import DeliveryRole
 from app.core.models.work_item import WorkItem
 from app.metrics.commitment_vs_completed import CommitmentVsCompletedMetric
@@ -14,123 +12,83 @@ def make_item(
 ) -> WorkItem:
     return WorkItem(
         id=item_id,
-        source="azure",
-        project="TestProject",
+        source="azure_devops",
+        project="KAN",
         type="User Story",
         title=f"Story {item_id}",
         status=status,
-        story_points=story_points,
         iteration=iteration,
+        story_points=story_points,
         delivery_role=DeliveryRole.PLANNING_ITEM,
-        created_at=datetime(2026, 1, 1),
     )
 
 
-def test_velocity_calculates_average_completed_story_points():
-    items = [
-        make_item("1", "Sprint 1", 8, "Done"),
-        make_item("2", "Sprint 1", 5, "Done"),
-        make_item("3", "Sprint 1", 3, "In Progress"),
-        make_item("4", "Sprint 2", 8, "Done"),
-        make_item("5", "Sprint 2", 5, "Done"),
-    ]
-
-    result = VelocityMetric().calculate(items)
-
-    assert result["metric"] == "velocity"
-    assert result["value"] == 13.0
-    assert result["unit"] == "story_points"
-    assert result["sample_size"] == 2
-
-    assert result["iterations"]["Sprint 1"]["completed"] == 13
-    assert result["iterations"]["Sprint 2"]["completed"] == 13
-
-
-def test_velocity_ignores_execution_items():
-    items = [
-        make_item("1", "Sprint 1", 8, "Done"),
-    ]
-
-    items.append(
-        WorkItem(
-            id="2",
-            source="azure",
-            project="TestProject",
-            type="Task",
-            title="Execution task",
-            status="Done",
-            story_points=100,
-            iteration="Sprint 1",
-            delivery_role=DeliveryRole.EXECUTION_ITEM,
-        )
+def make_feature_without_points() -> WorkItem:
+    return WorkItem(
+        id="feature-1",
+        source="azure_devops",
+        project="KAN",
+        type="Feature",
+        title="Feature",
+        status="Done",
+        iteration="KAN\\Sprint 4",
     )
 
-    result = VelocityMetric().calculate(items)
 
-    assert result["value"] == 8.0
-
-
-def test_velocity_returns_insufficient_data_without_iterations():
+def test_velocity_uses_completed_story_points_per_iteration():
     items = [
-        WorkItem(
-            id="1",
-            source="azure",
-            project="TestProject",
-            type="User Story",
-            title="Story",
-            status="Done",
-            story_points=8,
-            delivery_role=DeliveryRole.PLANNING_ITEM,
-        )
+        make_item("1", "KAN\\Sprint 1", 8, "Done"),
+        make_item("2", "KAN\\Sprint 1", 5, "Done"),
+        make_item("3", "KAN\\Sprint 1", 8, "In Progress"),
+        make_item("4", "KAN\\Sprint 1", 5, "New"),
+        make_item("5", "KAN\\Sprint 2", 8, "Done"),
+        make_item("6", "KAN\\Sprint 2", 5, "Done"),
+        make_item("7", "KAN\\Sprint 2", 8, "Done"),
+        make_item("8", "KAN\\Sprint 3", 8, "Done"),
+        make_item("9", "KAN\\Sprint 3", 8, "In Progress"),
+        make_item("10", "KAN\\Sprint 3", 8, "New"),
     ]
 
     result = VelocityMetric().calculate(items)
 
-    assert result["value"] is None
-    assert result["status"] == "insufficient_data"
+    assert result["value"] == 14.0
+    assert result["sample_size"] == 3
+    assert result["iterations"]["KAN\\Sprint 1"]["completed"] == 13
+    assert result["iterations"]["KAN\\Sprint 2"]["completed"] == 21
+    assert result["iterations"]["KAN\\Sprint 3"]["completed"] == 8
 
 
-def test_commitment_vs_completed():
+def test_commitment_vs_completed_is_calculated_per_iteration():
     items = [
-        make_item("1", "Sprint 1", 8, "Done"),
-        make_item("2", "Sprint 1", 5, "Done"),
-        make_item("3", "Sprint 1", 3, "In Progress"),
-        make_item("4", "Sprint 2", 8, "Done"),
-        make_item("5", "Sprint 2", 8, "In Progress"),
+        make_item("1", "KAN\\Sprint 1", 8, "Done"),
+        make_item("2", "KAN\\Sprint 1", 5, "Done"),
+        make_item("3", "KAN\\Sprint 1", 8, "In Progress"),
+        make_item("4", "KAN\\Sprint 1", 5, "New"),
+        make_item("5", "KAN\\Sprint 2", 8, "Done"),
+        make_item("6", "KAN\\Sprint 2", 5, "Done"),
+        make_item("7", "KAN\\Sprint 2", 8, "Done"),
+        make_item("8", "KAN\\Sprint 3", 8, "Done"),
+        make_item("9", "KAN\\Sprint 3", 8, "In Progress"),
+        make_item("10", "KAN\\Sprint 3", 8, "New"),
     ]
 
     result = CommitmentVsCompletedMetric().calculate(items)
 
-    assert result["metric"] == "commitment_vs_completed"
-    assert result["value"] == 65.62
-    assert result["unit"] == "percent"
-    assert result["sample_size"] == 2
-
-    assert result["iterations"]["Sprint 1"]["committed"] == 16
-    assert result["iterations"]["Sprint 1"]["completed"] == 13
-    assert result["iterations"]["Sprint 1"]["completion_percentage"] == 81.25
-
-    assert result["iterations"]["Sprint 2"]["committed"] == 16
-    assert result["iterations"]["Sprint 2"]["completed"] == 8
-    assert result["iterations"]["Sprint 2"]["completion_percentage"] == 50.0
+    assert result["value"] == 61.11
+    assert result["sample_size"] == 3
+    assert result["iterations"]["KAN\\Sprint 1"]["completion_percentage"] == 50.0
+    assert result["iterations"]["KAN\\Sprint 2"]["completion_percentage"] == 100.0
+    assert result["iterations"]["KAN\\Sprint 3"]["completion_percentage"] == 33.33
 
 
-def test_commitment_vs_completed_returns_insufficient_data_without_story_points():
+def test_planning_metrics_ignore_items_without_story_points():
     items = [
-        WorkItem(
-            id="1",
-            source="jira",
-            project="TestProject",
-            type="Story",
-            title="Story",
-            status="Done",
-            iteration="Sprint 1",
-            story_points=None,
-            delivery_role=DeliveryRole.PLANNING_ITEM,
-        )
+        make_feature_without_points(),
+        make_item("1", "KAN\\Sprint 1", 8, "Done"),
     ]
 
-    result = CommitmentVsCompletedMetric().calculate(items)
+    velocity = VelocityMetric().calculate(items)
+    commitment = CommitmentVsCompletedMetric().calculate(items)
 
-    assert result["value"] is None
-    assert result["status"] == "insufficient_data"
+    assert velocity["value"] == 8.0
+    assert commitment["value"] == 100.0

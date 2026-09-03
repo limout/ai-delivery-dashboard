@@ -13,24 +13,25 @@ class VelocityMetric(Metric):
             item
             for item in work_items
             if item.delivery_role.value == "planning_item"
+            and item.story_points is not None
+            and item.iteration
         ]
 
-        iterations: dict[str, dict[str, float]] = {}
+        iterations: dict[str, dict[str, float | int]] = {}
 
         for item in planning_items:
-            if not item.iteration:
-                continue
+            iteration = item.iteration
+            assert iteration is not None
 
-            if item.iteration not in iterations:
-                iterations[item.iteration] = {
-                    "completed": 0.0,
-                    "total_items": 0,
-                }
+            iterations.setdefault(
+                iteration,
+                {"completed": 0.0, "total_items": 0},
+            )
 
-            iterations[item.iteration]["total_items"] += 1
+            iterations[iteration]["total_items"] += 1
 
-            if item.status == "Done" and item.story_points is not None:
-                iterations[item.iteration]["completed"] += item.story_points
+            if item.status == "Done":
+                iterations[iteration]["completed"] += item.story_points
 
         if not iterations:
             return {
@@ -39,15 +40,13 @@ class VelocityMetric(Metric):
                 "unit": "story_points",
                 "sample_size": 0,
                 "status": "insufficient_data",
-                "message": "No iteration data available.",
+                "message": "No iteration or Story Point data available.",
                 "iterations": {},
             }
 
         completed_values = [
-            data["completed"]
-            for data in iterations.values()
+            data["completed"] for data in iterations.values()
         ]
-
         average_velocity = sum(completed_values) / len(completed_values)
 
         return {
