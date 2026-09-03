@@ -122,22 +122,19 @@ class HistoricalMetrics:
         Reconstruct the historical status of an item at the end of
         current_date.
 
-        We only trust states that can be reconstructed from recorded
-        status transitions.
+        The important rule here is that the current WorkItem.status
+        must NOT be used to reconstruct the past.
 
-        Before the first recorded status transition, the historical
-        status is unknown and must not be inferred from the current
-        WorkItem.status or from the first event's from_value.
+        Instead, the first historical transition gives us the initial
+        known state through event.from_value.
 
         Example:
 
             2026-08-31:
                 To Do -> In Progress
 
-        means:
-
-            2026-08-30 -> unknown
-            2026-08-31 -> In Progress
+        means that on 2026-08-30 the historical status was To Do,
+        not whatever the current WorkItem.status happens to be.
         """
 
         events = cls._status_events_for_item(
@@ -148,21 +145,21 @@ class HistoricalMetrics:
         if not events:
             return None
 
-        first_event_date = cls._normalize_datetime(
-            events[0].timestamp
-        ).date()
+        # A history record tells us what changed on the transition date,
+        # but it does not prove that the item should be counted in the
+        # requested period before that first recorded event.
+        #
+        # Therefore, before the first known transition we return None.
+        # On the transition date (and afterwards), the new status applies.
+        first_event_date = events[0].timestamp.date()
 
-        # Before the first recorded transition we do not have enough
-        # historical information to reconstruct the status.
         if current_date < first_event_date:
             return None
 
         status = events[0].from_value
 
         for event in events:
-            event_date = cls._normalize_datetime(
-                event.timestamp
-            ).date()
+            event_date = event.timestamp.date()
 
             if event_date > current_date:
                 break
@@ -522,6 +519,120 @@ class HistoricalMetrics:
         }
 
     @classmethod
+    def _planning_items_by_iteration(
+        cls,
+        work_items: list[WorkItem],
+    ) -> dict[str, list[WorkItem]]:
+        """Group Story Point-bearing planning items by iteration."""
+        iterations: defaultdict[str, list[WorkItem]] = defaultdict(list)
+
+        for item in work_items:
+            if item.delivery_role.value != "planning_item":
+                continue
+
+            if item.story_points is None or not item.iteration:
+                continue
+
+            iterations[item.iteration].append(item)
+
+        return dict(sorted(iterations.items()))
+
+    @classmethod
+    def calculate_velocity(
+        cls,
+        work_items: list[WorkItem],
+    ) -> dict:
+        """Calculate completed Story Points for each iteration."""
+        iterations = cls._planning_items_by_iteration(work_items)
+
+        points = []
+
+        for iteration, items in iterations.items():
+            completed = sum(
+                item.story_points
+                for item in items
+                if item.story_points is not None
+                and item.status in cls.DONE_STATUSES
+            )
+
+            points.append({
+                "label": iteration,
+                "value": round(completed, 2),
+            })
+
+        if not points:
+            return {
+                "metric": "velocity",
+                "unit": "story_points",
+                "status": "insufficient_data",
+                "points": [],
+            }
+
+        return {
+            "metric": "velocity",
+            "unit": "story_points",
+            "status": "ok",
+            "points": points,
+        }
+
+    @classmethod
+    def calculate_commitment_vs_completed(
+        cls,
+        work_items: list[WorkItem],
+    ) -> dict:
+        """
+        Calculate completed Story Points as a percentage of the current
+        Story Point scope assigned to each iteration.
+
+        This is an MVP proxy for sprint commitment. A true Scrum
+        commitment metric requires a snapshot of scope at sprint start.
+        """
+        iterations = cls._planning_items_by_iteration(work_items)
+
+        points = []
+
+        for iteration, items in iterations.items():
+            committed = sum(
+                item.story_points
+                for item in items
+                if item.story_points is not None
+            )
+
+            completed = sum(
+                item.story_points
+                for item in items
+                if item.story_points is not None
+                and item.status in cls.DONE_STATUSES
+            )
+
+            percentage = None
+            if committed > 0:
+                percentage = round(
+                    completed / committed * 100,
+                    2,
+                )
+
+            points.append({
+                "label": iteration,
+                "value": percentage,
+            })
+
+        if not points:
+            return {
+                "metric": "commitment_vs_completed",
+                "unit": "percent",
+                "status": "insufficient_data",
+                "points": [],
+            }
+
+        return {
+            "metric": "commitment_vs_completed",
+            "unit": "percent",
+            "status": "ok",
+            "points": points,
+        }
+
+    @classmethod
     def calculate(
         cls,
         metric: str,
@@ -562,6 +673,16 @@ class HistoricalMetrics:
                 histories=histories,
                 start_date=start_date,
                 end_date=end_date,
+            )
+
+        if metric == "velocity":
+            return cls.calculate_velocity(
+                work_items=work_items,
+            )
+
+        if metric == "commitment_vs_completed":
+            return cls.calculate_commitment_vs_completed(
+                work_items=work_items,
             )
 
         raise ValueError(

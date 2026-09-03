@@ -600,6 +600,20 @@
             >
                 Lead Time
             </button>
+
+            <button
+                id="history-metric-velocity"
+                onclick="selectHistoricalMetric('velocity')"
+            >
+                Velocity
+            </button>
+
+            <button
+                id="history-metric-commitment_vs_completed"
+                onclick="selectHistoricalMetric('commitment_vs_completed')"
+            >
+                Commitment vs Completed
+            </button>
         </div>
 
         <div id="history-chart-title" class="history-chart-title">
@@ -1184,7 +1198,9 @@
         "wip",
         "throughput",
         "cycle_time",
-        "lead_time"
+        "lead_time",
+        "velocity",
+        "commitment_vs_completed"
     ];
 
 
@@ -1203,20 +1219,13 @@
         const historyMetricSelector =
             document.querySelector(".history-metric-selector");
 
-        const selectedMetrics =
-            getSelectedMetrics();
-
+        // Historical Metrics is its own analytical view.
+        // It should expose every historical metric we support, regardless
+        // of which snapshot cards the user selected above.
         const selectedHistoricalMetrics =
-            historicalMetricNames.filter(
-                metric => selectedMetrics.includes(metric)
+            historicalMetricNames.filter(metric =>
+                document.getElementById(`history-metric-${metric}`)
             );
-
-        if (selectedHistoricalMetrics.length === 0) {
-
-            historySection.style.display = "none";
-
-            return;
-        }
 
         historySection.style.display = "block";
 
@@ -1266,10 +1275,7 @@
 
     function selectHistoricalMetric(metric) {
 
-        const selectedMetrics =
-            getSelectedMetrics();
-
-        if (!selectedMetrics.includes(metric)) {
+        if (!historicalMetricNames.includes(metric)) {
             return;
         }
 
@@ -1313,8 +1319,12 @@
 
         chart.innerHTML = "";
 
+        const isPlanningMetric =
+            selectedHistoricalMetric === "velocity" ||
+            selectedHistoricalMetric === "commitment_vs_completed";
+
         status.textContent =
-            `Loading historical ${formatMetricName(selectedHistoricalMetric)}...`;
+            `Loading ${isPlanningMetric ? "historical iteration" : "historical"} ${formatMetricName(selectedHistoricalMetric)}...`;
 
         document
             .querySelectorAll(".history-controls button")
@@ -1324,8 +1334,18 @@
             );
 
         document
-            .getElementById(`days-${days}`)
-            .classList.add("active");
+            .querySelectorAll(".history-controls button")
+            .forEach(button => {
+                button.style.display = isPlanningMetric
+                    ? "none"
+                    : "inline-block";
+            });
+
+        if (!isPlanningMetric) {
+            document
+                .getElementById(`days-${days}`)
+                .classList.add("active");
+        }
 
         try {
 
@@ -1623,7 +1643,7 @@
                     createElement("title");
 
                 tooltip.textContent =
-                    `${formatChartDate(point.date)}: ` +
+                    `${formatChartLabel(point)}: ` +
                     `${formatHistoricalValue(point.value, data.unit)}`;
 
                 circle.appendChild(tooltip);
@@ -1673,7 +1693,7 @@
                     );
 
                 label.textContent =
-                    formatChartDate(point.date);
+                    formatChartLabel(point);
 
                 chart.appendChild(label);
             }
@@ -1683,9 +1703,13 @@
         const measurableDays =
             numericValues.length;
 
-        status.textContent =
-            `${metricName} history · ${points.length} days · ` +
-            `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
+        const planningMetric =
+            data.metric === "velocity" ||
+            data.metric === "commitment_vs_completed";
+
+        status.textContent = planningMetric
+            ? `${metricName} history · ${points.length} iterations · ${measurableDays} measurable iteration${measurableDays === 1 ? "" : "s"}`
+            : `${metricName} history · ${points.length} days · ${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
     }
 
 
@@ -1757,7 +1781,7 @@
             return "N/A";
         }
 
-        if (unit === "days") {
+        if (unit === "days" || unit === "percent") {
 
             return Number(value)
                 .toFixed(2);
@@ -1765,6 +1789,16 @@
 
         return Math.round(value)
             .toString();
+    }
+
+
+    function formatChartLabel(point) {
+
+        if (point.label) {
+            return point.label;
+        }
+
+        return formatChartDate(point.date);
     }
 
 
