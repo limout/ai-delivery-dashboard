@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.core.models.delivery_semantics import DeliveryRole
+
 
 class WorkItem(BaseModel):
     id: str
@@ -25,3 +27,6 @@ class WorkItem(BaseModel):
 
     # Scrum / planning
     story_points: float | None = None
+
+    # Normalized delivery semantics
+    delivery_role: DeliveryRole = DeliveryRole.UNKNOWN

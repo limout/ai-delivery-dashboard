@@ -16,7 +16,7 @@ def test_jira_connector_reads_work_items():
     assert item.project == "KAN"
     assert item.id.startswith("KAN-")
     assert item.title
-
+    assert item.delivery_role is not None
 
 def test_jira_work_item_normalizes_parent_and_story_points(monkeypatch):
     connector = JiraConnector.__new__(JiraConnector)

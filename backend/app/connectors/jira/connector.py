@@ -2,6 +2,7 @@ import requests
 
 from app.core.config import settings
 from app.core.connectors.base import DeliveryConnector
+from app.core.models.delivery_semantics import get_delivery_role
 from app.core.models.work_item import WorkItem
 from app.core.models.work_item_history import WorkItemHistory
 
@@ -88,7 +89,7 @@ class JiraConnector(DeliveryConnector):
 
         histories = response.json().get(
             "changelog",
-            {}
+            {},
         ).get("histories", [])
 
         result = []
@@ -148,15 +149,17 @@ class JiraConnector(DeliveryConnector):
             "customfield_10016",
         )
 
+        work_item_type = (
+            issue_type["name"]
+            if issue_type
+            else "Unknown"
+        )
+
         return WorkItem(
             id=issue["key"],
             source="jira",
             project=project,
-            type=(
-                issue_type["name"]
-                if issue_type
-                else "Unknown"
-            ),
+            type=work_item_type,
             title=fields.get("summary", ""),
             status=(
                 fields.get("status", {}).get("name")
@@ -179,6 +182,10 @@ class JiraConnector(DeliveryConnector):
             parent_id=parent.get("key") if parent else None,
             story_points=_to_story_points(
                 fields.get(story_points_field)
+            ),
+            delivery_role=get_delivery_role(
+                source="jira",
+                work_item_type=work_item_type,
             ),
         )
 
