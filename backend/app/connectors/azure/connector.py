@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.connectors.base import DeliveryConnector
 from app.core.models.work_item import WorkItem
 from app.core.models.work_item_history import WorkItemHistory
+from app.core.models.delivery_semantics import DeliveryRole
 
 
 class AzureDevOpsConnector(DeliveryConnector):
@@ -22,6 +23,13 @@ class AzureDevOpsConnector(DeliveryConnector):
     }
 
     PARENT_RELATION = "System.LinkTypes.Hierarchy-Reverse"
+
+    ROLE_MAP = {
+        "Feature": DeliveryRole.PLANNING_ITEM,
+        "User Story": DeliveryRole.PLANNING_ITEM,
+        "Task": DeliveryRole.EXECUTION_ITEM,
+        "Bug": DeliveryRole.DEFECT,
+    }
 
     def __init__(self):
         if not settings.azure_devops_org:
@@ -202,6 +210,10 @@ class AzureDevOpsConnector(DeliveryConnector):
             parent_id=self._get_parent_id(item),
             story_points=self._to_story_points(
                 fields.get("Microsoft.VSTS.Scheduling.StoryPoints")
+            ),
+            delivery_role=self.ROLE_MAP.get(
+                fields.get("System.WorkItemType", "Unknown"),
+                DeliveryRole.UNKNOWN,
             ),
         )
 

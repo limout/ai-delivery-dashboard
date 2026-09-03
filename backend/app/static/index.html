@@ -23,6 +23,19 @@
             margin-bottom: 8px;
         }
 
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 240px;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
         .controls {
             display: flex;
             align-items: center;
@@ -46,6 +59,193 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .dashboard-controls {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .selection-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .control-group select {
+            min-width: 280px;
+            padding: 11px 12px;
+            font-size: 16px;
+            line-height: 1.3;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: white;
+            color: #222;
+        }
+
+        .selection-row button {
+            padding: 11px 18px;
+            font-size: 16px;
+            cursor: pointer;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .selection-row button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .dashboard-controls > .metric-selector {
+            margin: 22px 0 0;
+            padding: 0;
+            box-shadow: none;
+        }
+
+        .dashboard-controls > .metric-selector h2 {
+            margin-bottom: 16px;
+        }
+
+
+
+        .source-overview {
+            margin: 28px 0 34px;
+        }
+
+        .source-header, .work-items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .source-cards {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .source-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 18px;
+            background: #fff;
+        }
+
+        .source-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .source-name {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .source-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #eee;
+        }
+
+        .source-status.connected { background: #e8f5e9; color: #2e7d32; }
+        .source-status.error { background: #ffebee; color: #c62828; }
+
+        .source-count {
+            font-size: 30px;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+
+        .overview-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .overview-controls select {
+            min-width: 150px;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .work-items-section {
+            margin: 34px 0;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .work-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        .work-items-table th, .work-items-table td {
+            padding: 11px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        .work-items-table th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            background: #f7f7f7;
+        }
+
+        .work-items-table tr:last-child td { border-bottom: 0; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            border-radius: 5px;
+            background: #f0f0f0;
+            font-size: 12px;
+        }
+
+        .work-item-title {
+            font-weight: 600;
+        }
+
+        .work-item-id {
+            font-size: 11px;
+            color: #777;
+            margin-top: 3px;
+        }
+
+        .table-status {
+            padding: 4px 7px;
+            border-radius: 5px;
+            font-size: 12px;
+            background: #f0f0f0;
+        }
+
+        .overview-status {
+            min-height: 20px;
+            color: #666;
+            margin: 8px 0 12px;
+        }
+
+        @media (max-width: 700px) {
+            .source-cards { grid-template-columns: 1fr; }
+            .source-header, .work-items-header { align-items: flex-start; flex-direction: column; }
+        }
 
         .metric-selector {
             background: white;
@@ -61,7 +261,7 @@
         }
 
         .category-selector {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .category-selector:last-child {
@@ -264,16 +464,80 @@
 
     <h1>AI Delivery Dashboard</h1>
 
-    <div class="controls">
-        <label for="project">Project:</label>
-        <input id="project" type="text" value="KAN">
-        <button id="load-button" onclick="loadMetrics()">Load Metrics</button>
-    </div>
+    <section class="dashboard-controls">
+        <div class="selection-row">
+            <div class="control-group">
+                <label for="source-select">Source</label>
+                <select id="source-select" onchange="loadProjects()">
+                    <option value="">Loading sources...</option>
+                </select>
+            </div>
 
-    <div id="metric-selector" class="metric-selector">
-        <h2>Metrics</h2>
-        Loading available metrics...
-    </div>
+            <div class="control-group">
+                <label for="project-select">Project</label>
+                <select id="project-select" disabled onchange="handleProjectChange()">
+                    <option value="">Select a project...</option>
+                </select>
+            </div>
+
+            <button id="load-button" onclick="loadMetrics()" disabled>Load Dashboard</button>
+        </div>
+
+        <div id="selection-status" class="overview-status">Select a source and project to begin.</div>
+
+        <div id="metric-selector" class="metric-selector">
+            <h2>Metrics</h2>
+            Loading available metrics...
+        </div>
+    </section>
+
+    <section id="source-overview" class="source-overview" style="display:none;">
+        <div class="source-header">
+            <div>
+                <h2 id="dashboard-context">Delivery Overview</h2>
+                <div id="source-status" class="overview-status"></div>
+            </div>
+            <button id="work-items-toggle" onclick="toggleWorkItems()" style="display:none;">
+                View Work Items
+            </button>
+        </div>
+    </section>
+
+    <section id="work-items-section" class="work-items-section" style="display:none;">
+        <div class="work-items-header">
+            <div>
+                <h2>Work Items</h2>
+                <div id="work-items-status" class="overview-status"></div>
+            </div>
+            <div class="overview-controls">
+                <select id="work-role-filter" onchange="renderWorkItems()">
+                    <option value="all">All Roles</option>
+                    <option value="container">Container</option>
+                    <option value="planning_item">Planning Item</option>
+                    <option value="execution_item">Execution Item</option>
+                    <option value="defect">Defect</option>
+                    <option value="unknown">Unknown</option>
+                </select>
+                <select id="work-status-filter" onchange="renderWorkItems()">
+                    <option value="all">All Statuses</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table class="work-items-table">
+                <thead>
+                    <tr>
+                        <th>Work Item</th>
+                        <th>Type / Role</th>
+                        <th>Status</th>
+                        <th>Parent</th>
+                        <th>Story Points</th>
+                    </tr>
+                </thead>
+                <tbody id="work-items-body"></tbody>
+            </table>
+        </div>
+    </section>
 
     <div id="metrics"></div>
 
@@ -365,6 +629,164 @@
 
     let availableMetrics = [];
 
+
+
+    let allWorkItems = [];
+
+    async function loadSources() {
+        const select = document.getElementById("source-select");
+        try {
+            const response = await fetch("/sources");
+            if (!response.ok) throw new Error("Failed to load sources");
+            const data = await response.json();
+            select.innerHTML = '<option value="">Select a source...</option>' +
+                data.sources.map(source =>
+                    `<option value="${escapeHtml(source.source)}" ${source.status !== "connected" ? "disabled" : ""}>${escapeHtml(source.label)}${source.status !== "connected" ? " (unavailable)" : ""}</option>`
+                ).join("");
+        } catch (error) {
+            select.innerHTML = '<option value="">Unable to load sources</option>';
+            document.getElementById("error").textContent = error.message;
+        }
+    }
+
+    async function loadProjects() {
+        const source = document.getElementById("source-select").value;
+        const projectSelect = document.getElementById("project-select");
+        const button = document.getElementById("load-button");
+        projectSelect.disabled = true;
+        button.disabled = true;
+        projectSelect.innerHTML = '<option value="">Loading projects...</option>';
+        clearDashboard();
+
+        if (!source) {
+            projectSelect.innerHTML = '<option value="">Select a project...</option>';
+            document.getElementById("selection-status").textContent = "Select a source and project to begin.";
+            return;
+        }
+
+        try {
+            const response = await fetch(`/sources/${encodeURIComponent(source)}/projects`);
+            if (!response.ok) throw new Error("Failed to load projects");
+            const data = await response.json();
+            projectSelect.innerHTML = '<option value="">Select a project...</option>' +
+                data.projects.map(project =>
+                    `<option value="${escapeHtml(project.key)}">${escapeHtml(project.name)} (${escapeHtml(project.key)})</option>`
+                ).join("");
+            projectSelect.disabled = false;
+            document.getElementById("selection-status").textContent =
+                `${data.projects.length} project${data.projects.length === 1 ? "" : "s"} available in ${formatSource(source)}.`;
+        } catch (error) {
+            projectSelect.innerHTML = '<option value="">Unable to load projects</option>';
+            document.getElementById("error").textContent = error.message;
+        }
+    }
+
+    function handleProjectChange() {
+        const project = document.getElementById("project-select").value;
+        document.getElementById("load-button").disabled = !project;
+        clearDashboard();
+        document.getElementById("selection-status").textContent = project
+            ? `Ready to load ${formatSource(document.getElementById("source-select").value)} · ${project}.`
+            : "Select a project to begin.";
+    }
+
+    function clearDashboard() {
+        document.getElementById("source-overview").style.display = "none";
+        document.getElementById("work-items-section").style.display = "none";
+        document.getElementById("work-items-toggle").style.display = "none";
+        document.getElementById("metrics").innerHTML = "";
+        document.getElementById("history-section").style.display = "none";
+        document.getElementById("error").textContent = "";
+    }
+
+    async function loadOverview() {
+        const project = document.getElementById("project-select").value;
+        const source = document.getElementById("source-select").value;
+        const status = document.getElementById("source-status");
+        if (!project || !source) return;
+
+        const workResponse = await fetch(
+            `/projects/${encodeURIComponent(project)}/work-items?source=${encodeURIComponent(source)}`
+        );
+        if (!workResponse.ok) throw new Error("Failed to load work items");
+        const workData = await workResponse.json();
+        allWorkItems = workData.work_items || [];
+        document.getElementById("source-overview").style.display = "block";
+        document.getElementById("work-items-section").style.display = "none";
+
+        const workItemsToggle = document.getElementById("work-items-toggle");
+        workItemsToggle.style.display = "inline-block";
+        workItemsToggle.textContent = "View Work Items";
+
+        document.getElementById("dashboard-context").textContent = `${formatSource(source)} · ${project}`;
+        status.textContent = `${allWorkItems.length} normalized work items available`;
+        updateStatusFilter();
+        renderWorkItems();
+    }
+
+    function updateStatusFilter() {
+        const select = document.getElementById("work-status-filter");
+        const current = select.value;
+        const statuses = [...new Set(allWorkItems.map(item => item.status).filter(Boolean))].sort();
+        select.innerHTML = '<option value="all">All Statuses</option>' +
+            statuses.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join("");
+        if (statuses.includes(current)) select.value = current;
+    }
+
+    function toggleWorkItems() {
+        const section = document.getElementById("work-items-section");
+        const button = document.getElementById("work-items-toggle");
+
+        if (section.style.display === "none") {
+            section.style.display = "block";
+            button.textContent = "Hide Work Items";
+        } else {
+            section.style.display = "none";
+            button.textContent = "View Work Items";
+        }
+    }
+
+
+    function renderWorkItems() {
+        const role = document.getElementById("work-role-filter").value;
+        const status = document.getElementById("work-status-filter").value;
+        const filtered = allWorkItems.filter(item =>
+            (role === "all" || item.delivery_role === role) &&
+            (status === "all" || item.status === status)
+        );
+        const body = document.getElementById("work-items-body");
+        document.getElementById("work-items-status").textContent = `${filtered.length} of ${allWorkItems.length} work items`;
+        if (!filtered.length) {
+            body.innerHTML = '<tr><td colspan="5">No work items match the selected filters.</td></tr>';
+            return;
+        }
+        body.innerHTML = filtered.map(item => `
+            <tr>
+                <td><div class="work-item-title">${escapeHtml(item.title || "Untitled")}</div><div class="work-item-id">${escapeHtml(item.id)}</div></td>
+                <td><div>${escapeHtml(item.type || "Unknown")}</div><div class="work-item-id">${formatRole(item.delivery_role)}</div></td>
+                <td><span class="table-status">${escapeHtml(item.status || "—")}</span></td>
+                <td>${escapeHtml(item.parent_id || "—")}</td>
+                <td>${item.story_points == null ? "—" : item.story_points}</td>
+            </tr>`).join("");
+    }
+
+    function formatSource(source) {
+        return source === "azure_devops" ? "Azure DevOps" : "Jira";
+    }
+
+    function formatRole(role) {
+        if (!role) return "Unknown";
+        return role.replaceAll("_", " ").replace(/\b\w/g, letter => letter.toUpperCase());
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
 
     async function loadAvailableMetrics() {
 
@@ -466,15 +888,30 @@
                 checkbox.checked = true;
                 checkbox.addEventListener(
                     "change",
-                    () => {
+                    async () => {
                         const historySection =
                             document.getElementById("history-section");
 
+                        // Before a project is loaded, changing the selection
+                        // only changes the selection itself.
                         if (
-                            historySection.dataset.projectLoaded === "true"
+                            historySection.dataset.projectLoaded !== "true"
                         ) {
-                            syncHistoricalMetricSelector();
+                            return;
                         }
+
+                        const selectedMetrics = getSelectedMetrics();
+
+                        // No selected metrics: clear the metric cards and history.
+                        if (selectedMetrics.length === 0) {
+                            document.getElementById("metrics").innerHTML = "";
+                            historySection.style.display = "none";
+                            return;
+                        }
+
+                        // Recalculate and redraw the cards for the current
+                        // source/project using the new metric selection.
+                        await loadMetrics();
                     }
                 );
 
@@ -528,9 +965,7 @@
         try {
 
             const project =
-                document.getElementById("project")
-                    .value
-                    .trim();
+                document.getElementById("project-select").value.trim();
 
             if (!project) {
                 throw new Error("Project is required");
@@ -548,8 +983,12 @@
             button.disabled = true;
             button.textContent = "Loading...";
 
+            await loadOverview();
+
             container.innerHTML = "Loading...";
             errorContainer.textContent = "";
+
+            const source = document.getElementById("source-select").value;
 
             const query =
                 selectedMetrics
@@ -561,7 +1000,7 @@
 
             const response =
                 await fetch(
-                    `/projects/${encodeURIComponent(project)}/metrics?${query}`
+                    `/projects/${encodeURIComponent(project)}/metrics?${query}&source=${encodeURIComponent(source)}`
                 );
 
             if (!response.ok) {
@@ -851,9 +1290,7 @@
     async function loadHistoricalMetrics(days = 14) {
 
         const project =
-            document.getElementById("project")
-                .value
-                .trim();
+            document.getElementById("project-select").value.trim();
 
         const chart =
             document.getElementById("history-chart");
@@ -896,7 +1333,8 @@
                 await fetch(
                     `/projects/${encodeURIComponent(project)}/metrics/history` +
                     `?metric=${encodeURIComponent(selectedHistoricalMetric)}` +
-                    `&days=${days}`
+                    `&days=${days}` +
+                    `&source=${encodeURIComponent(document.getElementById("source-select").value)}`
                 );
 
             if (!response.ok) {
@@ -1352,6 +1790,7 @@
         try {
 
             await loadAvailableMetrics();
+            await loadSources();
 
             // Do not load project data automatically.
             // Project data is loaded only after the user clicks Load Metrics.

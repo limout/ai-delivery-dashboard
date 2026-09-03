@@ -3,6 +3,9 @@ from app.metrics.throughput import ThroughputMetric
 from app.metrics.cycle_time import CycleTimeMetric
 from app.metrics.lead_time import LeadTimeMetric
 from app.metrics.wip import WIPMetric
+from app.metrics.velocity import VelocityMetric
+from app.metrics.commitment_vs_completed import CommitmentVsCompletedMetric
+
 
 class MetricRegistry:
     def __init__(self):
@@ -28,5 +31,8 @@ def get_default_registry() -> MetricRegistry:
     registry.register(CycleTimeMetric())
     registry.register(LeadTimeMetric())
     registry.register(WIPMetric())
+
+    registry.register(VelocityMetric())
+    registry.register(CommitmentVsCompletedMetric())
 
     return registry

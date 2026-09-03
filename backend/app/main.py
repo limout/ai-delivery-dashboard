@@ -4,7 +4,9 @@ from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.connectors.azure.connector import AzureDevOpsConnector
 from app.connectors.jira.connector import JiraConnector
+from app.core.connectors.base import DeliveryConnector
 from app.metrics.engine import MetricEngine
 from app.metrics.historical import HistoricalMetrics
 from app.metrics.registry import get_default_registry
@@ -25,9 +27,7 @@ app.mount(
 
 @app.get("/")
 def dashboard():
-    return FileResponse(
-        "app/static/index.html"
-    )
+    return FileResponse("app/static/index.html")
 
 
 @app.get("/health")
@@ -52,15 +52,173 @@ def metrics():
     }
 
 
+def get_connector(source: str) -> DeliveryConnector:
+    normalized = source.lower()
+
+    if normalized == "jira":
+        return JiraConnector()
+
+    if normalized in {"azure", "azure_devops"}:
+        return AzureDevOpsConnector()
+
+    raise ValueError(f"Unsupported source: {source}")
+
+
+class CombinedDeliveryConnector(DeliveryConnector):
+    """Small adapter that exposes multiple normalized sources as one connector."""
+
+    def __init__(self, connectors: list[DeliveryConnector]):
+        self.connectors = connectors
+        self._item_sources: dict[str, DeliveryConnector] = {}
+
+    def get_projects(self) -> list[dict]:
+        projects = []
+        for connector in self.connectors:
+            projects.extend(connector.get_projects())
+        return projects
+
+    def get_work_items(self, project: str):
+        result = []
+        self._item_sources = {}
+
+        for connector in self.connectors:
+            items = connector.get_work_items(project)
+            result.extend(items)
+            for item in items:
+                self._item_sources[item.id] = connector
+
+        return result
+
+    def get_work_item_history(self, work_item_id: str):
+        connector = self._item_sources.get(work_item_id)
+
+        if connector is not None:
+            return connector.get_work_item_history(work_item_id)
+
+        # History can also be requested independently of get_work_items().
+        # Try each source until one accepts the ID.
+        history = []
+        for candidate in self.connectors:
+            try:
+                history = candidate.get_work_item_history(work_item_id)
+            except Exception:
+                continue
+            if history:
+                return history
+
+        return []
+
+    def get_iterations(self, project: str) -> list[dict]:
+        result = []
+        for connector in self.connectors:
+            result.extend(connector.get_iterations(project))
+        return result
+
+    def get_releases(self, project: str) -> list[dict]:
+        result = []
+        for connector in self.connectors:
+            result.extend(connector.get_releases(project))
+        return result
+
+
+def get_delivery_connector(source: str) -> DeliveryConnector:
+    normalized = source.lower()
+
+    if normalized == "all":
+        return CombinedDeliveryConnector([
+            JiraConnector(),
+            AzureDevOpsConnector(),
+        ])
+
+    return get_connector(normalized)
+
+
+@app.get("/sources")
+def sources():
+    result = []
+
+    for source_name, label in (("jira", "Jira"), ("azure_devops", "Azure DevOps")):
+        try:
+            connector = get_connector(source_name)
+            projects = connector.get_projects()
+            result.append({
+                "source": source_name,
+                "label": label,
+                "status": "connected",
+                "project_count": len(projects),
+            })
+        except Exception as exc:
+            result.append({
+                "source": source_name,
+                "label": label,
+                "status": "error",
+                "project_count": 0,
+                "message": str(exc),
+            })
+
+    return {"sources": result}
+
+
+@app.get("/sources/{source}/projects")
+def source_projects(source: str):
+    connector = get_connector(source)
+    projects = connector.get_projects()
+    return {"source": source, "projects": projects}
+
+
+@app.get("/projects/{project}/sources")
+def project_sources(project: str):
+    sources = []
+
+    for source_name, label in (
+        ("jira", "Jira"),
+        ("azure_devops", "Azure DevOps"),
+    ):
+        try:
+            connector = get_connector(source_name)
+            items = connector.get_work_items(project)
+            sources.append({
+                "source": source_name,
+                "label": label,
+                "status": "connected",
+                "item_count": len(items),
+            })
+        except Exception as exc:
+            sources.append({
+                "source": source_name,
+                "label": label,
+                "status": "error",
+                "item_count": 0,
+                "message": str(exc),
+            })
+
+    return {"project": project, "sources": sources}
+
+
+@app.get("/projects/{project}/work-items")
+def project_work_items(
+    project: str,
+    source: str = "all",
+):
+    connector = get_delivery_connector(source)
+    items = connector.get_work_items(project)
+
+    return {
+        "project": project,
+        "source": source,
+        "count": len(items),
+        "work_items": [item.model_dump(mode="json") for item in items],
+    }
+
+
 @app.get("/projects/{project}/metrics")
 def project_metrics(
     project: str,
     metric_names: list[str] = Query(...),
+    source: str = "jira",
 ):
-    connector = JiraConnector()
-    engine = MetricEngine(
-        get_default_registry()
-    )
+    connector = get_delivery_connector(source)
+    engine = MetricEngine(get_default_registry())
 
     service = DeliveryMetricsService(
         connector=connector,
@@ -78,27 +236,21 @@ def project_metrics_history(
     project: str,
     metric: str = "wip",
     days: int = 14,
+    source: str = "jira",
 ):
-    connector = JiraConnector()
+    connector = get_delivery_connector(source)
 
-    work_items = connector.get_work_items(
-        project
-    )
+    work_items = connector.get_work_items(project)
 
     history = []
 
     for item in work_items:
         history.extend(
-            connector.get_work_item_history(
-                item.id
-            )
+            connector.get_work_item_history(item.id)
         )
 
     end_date = date.today()
-    start_date = (
-        end_date -
-        timedelta(days=days - 1)
-    )
+    start_date = end_date - timedelta(days=days - 1)
 
     historical = HistoricalMetrics()
 
