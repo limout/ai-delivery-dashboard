@@ -12,6 +12,9 @@ from app.metrics.historical import HistoricalMetrics
 from app.metrics.registry import get_default_registry
 from app.services.delivery_metrics import DeliveryMetricsService
 from app.services.evidence import EvidenceService
+from app.ai.context import AIContextBuilder
+from app.ai.ollama import OllamaProvider
+from app.ai.analyzer import AIAnalyzer
 from app.services.insight_service import InsightService
 
 app = FastAPI(
@@ -294,3 +297,49 @@ def project_insights(
     )
     result["source"] = source
     return result
+
+@app.get("/projects/{project}/ai/context")
+def project_ai_context(
+    project: str,
+    source: str = "jira",
+    days: int = 14,
+):
+    """Return deterministic delivery context prepared for an AI model.
+
+    The endpoint deliberately reuses the existing insights pipeline and does
+    not call an LLM. AIContextBuilder only packages already-derived facts.
+    """
+    analysis = project_insights(
+        project=project,
+        source=source,
+        days=days,
+    )
+
+    context = AIContextBuilder().build(
+        analysis=analysis,
+        source=source,
+    )
+
+    return context.model_dump(mode="json")
+
+
+
+@app.get("/projects/{project}/ai/analyze")
+def project_ai_analyze(
+    project: str,
+    source: str = "jira",
+    days: int = 14,
+):
+    """Analyze deterministic delivery context with the configured AI provider."""
+    analysis = project_insights(
+        project=project,
+        source=source,
+        days=days,
+    )
+
+    context = AIContextBuilder().build(
+        analysis=analysis,
+        source=source,
+    )
+
+    return AIAnalyzer(provider=OllamaProvider()).analyze(context)
