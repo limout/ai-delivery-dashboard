@@ -17,17 +17,14 @@ class AIContext(BaseModel):
 
 
 class AIContextBuilder:
-    """Build an AI-ready context from the existing deterministic analysis result.
+    """Build an AI-ready context from deterministic delivery analysis.
 
-    This class deliberately does not calculate metrics, infer new facts, or
-    call an LLM. It only packages data already produced by the dashboard.
+    This class does not calculate metrics, infer new facts, or call an LLM.
+    It only packages data already produced by the deterministic analysis
+    pipeline, including structured insight evidence.
     """
 
-    def build(
-        self,
-        analysis: dict[str, Any],
-        source: str,
-    ) -> AIContext:
+    def build(self, analysis: dict[str, Any], source: str) -> AIContext:
         return AIContext(
             project=str(analysis.get("project", "")),
             source=source,
@@ -41,6 +38,7 @@ class AIContextBuilder:
     def _copy_dict(value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return {}
+
         return dict(value)
 
     @staticmethod
@@ -48,7 +46,7 @@ class AIContextBuilder:
         if not isinstance(value, list):
             return []
 
-        result: list[dict[str, Any]] = []
+        result = []
 
         for insight in value:
             if isinstance(insight, dict):

@@ -137,3 +137,45 @@ def test_build_ignores_invalid_top_level_values_without_creating_fake_facts():
     assert context.metrics == {}
     assert context.historical == {}
     assert context.insights == [{"title": "Valid insight"}]
+
+def test_ai_context_preserves_structured_insight_evidence():
+    analysis = {
+        "project": "KAN",
+        "days": 14,
+        "metrics": {},
+        "historical": {},
+        "insights": [
+            {
+                "id": "wip-congestion",
+                "severity": "high",
+                "title": "WIP is increasing without higher throughput",
+                "fact": "WIP is 9.",
+                "signal": "Potential congestion.",
+                "recommendation": "Review aging work.",
+                "confidence": "medium",
+                "metric": "wip",
+                "evidence": {
+                    "wip": {
+                        "current": 9,
+                        "trend": 4,
+                    },
+                    "throughput": {
+                        "current": 7,
+                        "trend": -1,
+                    },
+                },
+            }
+        ],
+    }
+
+    context = AIContextBuilder().build(
+        analysis=analysis,
+        source="jira",
+    )
+
+    insight = context.insights[0]
+
+    assert insight["evidence"]["wip"]["current"] == 9
+    assert insight["evidence"]["wip"]["trend"] == 4
+    assert insight["evidence"]["throughput"]["current"] == 7
+    assert insight["evidence"]["throughput"]["trend"] == -1
