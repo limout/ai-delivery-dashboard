@@ -14,8 +14,9 @@ class Insight:
     recommendation: str
     confidence: str
     metric: str
+    evidence: dict[str, Any]
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "severity": self.severity,
@@ -25,6 +26,7 @@ class Insight:
             "recommendation": self.recommendation,
             "confidence": self.confidence,
             "metric": self.metric,
+            "evidence": self.evidence,
         }
 
 
@@ -40,7 +42,7 @@ class InsightEngine:
         self,
         metrics: dict[str, dict[str, Any]],
         historical: dict[str, dict[str, Any]] | None = None,
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         historical = historical or {}
         insights: list[Insight] = []
 
@@ -61,6 +63,7 @@ class InsightEngine:
 
         severity_order = {"high": 0, "medium": 1, "low": 2, "info": 3}
         insights.sort(key=lambda item: severity_order.get(item.severity, 99))
+
         return [item.to_dict() for item in insights]
 
     def _check_wip_congestion(self, metrics, historical, insights):
@@ -82,11 +85,30 @@ class InsightEngine:
                 id="wip-congestion",
                 severity="high",
                 title="WIP is increasing without higher throughput",
-                fact=f"WIP is {wip:g}; WIP is trending up while throughput is flat or declining.",
-                signal="The delivery system may be accumulating work faster than it finishes it.",
-                recommendation="Review aging or blocked work and consider reducing new work entering the system.",
+                fact=(
+                    f"WIP is {wip:g}; WIP is trending up while throughput "
+                    "is flat or declining."
+                ),
+                signal=(
+                    "The delivery system may be accumulating work faster "
+                    "than it finishes it."
+                ),
+                recommendation=(
+                    "Review aging or blocked work and consider reducing "
+                    "new work entering the system."
+                ),
                 confidence="medium",
                 metric="wip",
+                evidence={
+                    "wip": {
+                        "current": wip,
+                        "trend": wip_change,
+                    },
+                    "throughput": {
+                        "current": throughput,
+                        "trend": throughput_change,
+                    },
+                },
             )
         )
 
@@ -124,6 +146,16 @@ class InsightEngine:
                 ),
                 confidence="high",
                 metric="wip",
+                evidence={
+                    "wip": {
+                        "current": wip,
+                        "trend": self._trend(historical.get("wip")),
+                    },
+                    "cycle_time": {
+                        "current": cycle_time,
+                        "trend": self._trend(historical.get("cycle_time")),
+                    },
+                },
             )
         )
 
@@ -147,10 +179,21 @@ class InsightEngine:
                     f"There are {wip:g} WIP items against throughput of "
                     f"{throughput:g} in the current metric window."
                 ),
-                signal="The current work inventory is large compared with the rate at which work is completed.",
-                recommendation="Prioritize finishing existing work before starting additional items.",
+                signal=(
+                    "The current work inventory is large compared with "
+                    "the rate at which work is completed."
+                ),
+                recommendation=(
+                    "Prioritize finishing existing work before starting "
+                    "additional items."
+                ),
                 confidence="medium",
                 metric="wip",
+                evidence={
+                    "wip": {"current": wip},
+                    "throughput": {"current": throughput},
+                    "wip_to_throughput_ratio": ratio,
+                },
             )
         )
 
@@ -166,11 +209,26 @@ class InsightEngine:
                 id="throughput-decline",
                 severity="medium",
                 title="Throughput is declining",
-                fact=f"Current throughput is {throughput:g} completed items and the historical trend is downward.",
-                signal="The system is completing less work than earlier in the selected period.",
-                recommendation="Check whether blockers, aging work, or increased work size are reducing completion rate.",
+                fact=(
+                    f"Current throughput is {throughput:g} completed items "
+                    "and the historical trend is downward."
+                ),
+                signal=(
+                    "The system is completing less work than earlier "
+                    "in the selected period."
+                ),
+                recommendation=(
+                    "Check whether blockers, aging work, or increased "
+                    "work size are reducing completion rate."
+                ),
                 confidence="medium",
                 metric="throughput",
+                evidence={
+                    "throughput": {
+                        "current": throughput,
+                        "trend": change,
+                    }
+                },
             )
         )
 
@@ -186,11 +244,26 @@ class InsightEngine:
                 id="cycle-time-slowdown",
                 severity="medium",
                 title="Cycle Time is increasing",
-                fact=f"Current Cycle Time is {cycle_time:g} days and the historical trend is upward.",
-                signal="Completed work is taking longer to move through the delivery process.",
-                recommendation="Inspect recent completed items for blockers, handoffs, or unusually large work.",
+                fact=(
+                    f"Current Cycle Time is {cycle_time:g} days and the "
+                    "historical trend is upward."
+                ),
+                signal=(
+                    "Completed work is taking longer to move through "
+                    "the delivery process."
+                ),
+                recommendation=(
+                    "Inspect recent completed items for blockers, handoffs, "
+                    "or unusually large work."
+                ),
                 confidence="medium",
                 metric="cycle_time",
+                evidence={
+                    "cycle_time": {
+                        "current": cycle_time,
+                        "trend": change,
+                    }
+                },
             )
         )
 
@@ -206,11 +279,26 @@ class InsightEngine:
                 id="lead-time-slowdown",
                 severity="medium",
                 title="Lead Time is increasing",
-                fact=f"Current Lead Time is {lead_time:g} days and the historical trend is upward.",
-                signal="Work is taking longer from creation to completion, indicating increasing end-to-end delivery latency.",
-                recommendation="Inspect queue time, waiting states, handoffs, and aging items before increasing incoming demand.",
+                fact=(
+                    f"Current Lead Time is {lead_time:g} days and the "
+                    "historical trend is upward."
+                ),
+                signal=(
+                    "Work is taking longer from creation to completion, "
+                    "indicating increasing end-to-end delivery latency."
+                ),
+                recommendation=(
+                    "Inspect queue time, waiting states, handoffs, and aging "
+                    "items before increasing incoming demand."
+                ),
                 confidence="medium",
                 metric="lead_time",
+                evidence={
+                    "lead_time": {
+                        "current": lead_time,
+                        "trend": change,
+                    }
+                },
             )
         )
 
@@ -226,11 +314,26 @@ class InsightEngine:
                 id="velocity-decline",
                 severity="medium",
                 title="Velocity is declining",
-                fact=f"Current average velocity is {velocity:g} Story Points and the historical trend is downward.",
-                signal="The team is completing fewer Story Points per iteration than earlier iterations.",
-                recommendation="Review spillover, blockers, scope changes, and unusually large or complex work before changing commitments.",
+                fact=(
+                    f"Current average velocity is {velocity:g} Story Points "
+                    "and the historical trend is downward."
+                ),
+                signal=(
+                    "The team is completing fewer Story Points per iteration "
+                    "than earlier iterations."
+                ),
+                recommendation=(
+                    "Review spillover, blockers, scope changes, and unusually "
+                    "large or complex work before changing commitments."
+                ),
                 confidence="medium",
                 metric="velocity",
+                evidence={
+                    "velocity": {
+                        "current": velocity,
+                        "trend": change,
+                    }
+                },
             )
         )
 
@@ -241,27 +344,43 @@ class InsightEngine:
             return
 
         severity = "high" if completion < 50 else "medium"
+
         insights.append(
             Insight(
                 id="planning-risk",
                 severity=severity,
                 title="Commitment completion is low",
                 fact=f"Average completed commitment is {completion:g}%.",
-                signal="Recent iterations are completing substantially less than their committed scope.",
-                recommendation="Review spillover and scope changes before increasing future commitments.",
+                signal=(
+                    "Recent iterations are completing substantially less "
+                    "than their committed scope."
+                ),
+                recommendation=(
+                    "Review spillover and scope changes before increasing "
+                    "future commitments."
+                ),
                 confidence="medium",
                 metric="commitment_vs_completed",
+                evidence={
+                    "commitment_vs_completed": {
+                        "current": completion,
+                    }
+                },
             )
         )
 
     @staticmethod
     def _value(metrics: dict[str, dict[str, Any]], name: str) -> float | None:
         metric = metrics.get(name)
+
         if not metric:
             return None
+
         value = metric.get("value")
+
         if value is None:
             return None
+
         try:
             return float(value)
         except (TypeError, ValueError):
@@ -271,12 +390,16 @@ class InsightEngine:
     def _trend(data: dict[str, Any] | None) -> float:
         if not data:
             return 0.0
+
         points = data.get("points", [])
+
         values = [
             p.get("value")
             for p in points
             if p.get("value") is not None
         ]
+
         if len(values) < 2:
             return 0.0
+
         return float(values[-1]) - float(values[0])
