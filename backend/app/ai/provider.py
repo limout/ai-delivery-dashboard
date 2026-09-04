@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+
 from app.ai.context import AIContext
+
 
 class AIProvider(ABC):
     @abstractmethod
