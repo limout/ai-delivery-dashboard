@@ -778,6 +778,19 @@
             >
                 Lead Time
             </button>
+            <button
+                id="history-metric-velocity"
+                onclick="selectHistoricalMetric('velocity')"
+            >
+                Velocity
+            </button>
+
+            <button
+                id="history-metric-commitment_vs_completed"
+                onclick="selectHistoricalMetric('commitment_vs_completed')"
+            >
+                Commitment Vs Completed
+            </button>
         </div>
 
         <div id="history-chart-title" class="history-chart-title">
@@ -1367,7 +1380,9 @@
         "wip",
         "throughput",
         "cycle_time",
-        "lead_time"
+        "lead_time",
+        "velocity",
+        "commitment_vs_completed"
     ];
 
 
@@ -1447,7 +1462,13 @@
     }
 
 
-    function selectHistoricalMetric(metric) {
+    function isPlanningHistoricalMetric(metric) {
+        return metric === "velocity" ||
+               metric === "commitment_vs_completed";
+    }
+
+
+function selectHistoricalMetric(metric) {
 
         const selectedMetrics =
             getSelectedMetrics();
@@ -1867,8 +1888,11 @@
             numericValues.length;
 
         status.textContent =
-            `${metricName} history · ${points.length} days · ` +
-            `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
+            isPlanningHistoricalMetric(data.metric)
+                ? `${metricName} history · ${points.length} iterations · ` +
+                  `${measurableDays} measurable iteration${measurableDays === 1 ? "" : "s"}`
+                : `${metricName} history · ${points.length} days · ` +
+                  `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
     }
 
 

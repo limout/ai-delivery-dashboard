@@ -14,12 +14,10 @@ from app.services.delivery_metrics import DeliveryMetricsService
 from app.services.evidence import EvidenceService
 from app.services.insight_service import InsightService
 
-
 app = FastAPI(
     title="AI Delivery Dashboard",
     version="0.1.0",
 )
-
 
 app.mount(
     "/static",
@@ -68,7 +66,7 @@ def get_connector(source: str) -> DeliveryConnector:
 
 
 class CombinedDeliveryConnector(DeliveryConnector):
-    """Expose multiple normalized sources as one connector."""
+    """Small adapter that exposes multiple normalized sources as one connector."""
 
     def __init__(self, connectors: list[DeliveryConnector]):
         self.connectors = connectors
@@ -76,10 +74,8 @@ class CombinedDeliveryConnector(DeliveryConnector):
 
     def get_projects(self) -> list[dict]:
         projects = []
-
         for connector in self.connectors:
             projects.extend(connector.get_projects())
-
         return projects
 
     def get_work_items(self, project: str):
@@ -89,7 +85,6 @@ class CombinedDeliveryConnector(DeliveryConnector):
         for connector in self.connectors:
             items = connector.get_work_items(project)
             result.extend(items)
-
             for item in items:
                 self._item_sources[item.id] = connector
 
@@ -101,12 +96,14 @@ class CombinedDeliveryConnector(DeliveryConnector):
         if connector is not None:
             return connector.get_work_item_history(work_item_id)
 
+        # History can also be requested independently of get_work_items().
+        # Try each source until one accepts the ID.
+        history = []
         for candidate in self.connectors:
             try:
                 history = candidate.get_work_item_history(work_item_id)
             except Exception:
                 continue
-
             if history:
                 return history
 
@@ -114,18 +111,14 @@ class CombinedDeliveryConnector(DeliveryConnector):
 
     def get_iterations(self, project: str) -> list[dict]:
         result = []
-
         for connector in self.connectors:
             result.extend(connector.get_iterations(project))
-
         return result
 
     def get_releases(self, project: str) -> list[dict]:
         result = []
-
         for connector in self.connectors:
             result.extend(connector.get_releases(project))
-
         return result
 
 
@@ -133,12 +126,10 @@ def get_delivery_connector(source: str) -> DeliveryConnector:
     normalized = source.lower()
 
     if normalized == "all":
-        return CombinedDeliveryConnector(
-            [
-                JiraConnector(),
-                AzureDevOpsConnector(),
-            ]
-        )
+        return CombinedDeliveryConnector([
+            JiraConnector(),
+            AzureDevOpsConnector(),
+        ])
 
     return get_connector(normalized)
 
@@ -147,33 +138,24 @@ def get_delivery_connector(source: str) -> DeliveryConnector:
 def sources():
     result = []
 
-    for source_name, label in (
-        ("jira", "Jira"),
-        ("azure_devops", "Azure DevOps"),
-    ):
+    for source_name, label in (("jira", "Jira"), ("azure_devops", "Azure DevOps")):
         try:
             connector = get_connector(source_name)
             projects = connector.get_projects()
-
-            result.append(
-                {
-                    "source": source_name,
-                    "label": label,
-                    "status": "connected",
-                    "project_count": len(projects),
-                }
-            )
-
+            result.append({
+                "source": source_name,
+                "label": label,
+                "status": "connected",
+                "project_count": len(projects),
+            })
         except Exception as exc:
-            result.append(
-                {
-                    "source": source_name,
-                    "label": label,
-                    "status": "error",
-                    "project_count": 0,
-                    "message": str(exc),
-                }
-            )
+            result.append({
+                "source": source_name,
+                "label": label,
+                "status": "error",
+                "project_count": 0,
+                "message": str(exc),
+            })
 
     return {"sources": result}
 
@@ -182,11 +164,7 @@ def sources():
 def source_projects(source: str):
     connector = get_connector(source)
     projects = connector.get_projects()
-
-    return {
-        "source": source,
-        "projects": projects,
-    }
+    return {"source": source, "projects": projects}
 
 
 @app.get("/projects/{project}/sources")
@@ -200,31 +178,22 @@ def project_sources(project: str):
         try:
             connector = get_connector(source_name)
             items = connector.get_work_items(project)
-
-            sources.append(
-                {
-                    "source": source_name,
-                    "label": label,
-                    "status": "connected",
-                    "item_count": len(items),
-                }
-            )
-
+            sources.append({
+                "source": source_name,
+                "label": label,
+                "status": "connected",
+                "item_count": len(items),
+            })
         except Exception as exc:
-            sources.append(
-                {
-                    "source": source_name,
-                    "label": label,
-                    "status": "error",
-                    "item_count": 0,
-                    "message": str(exc),
-                }
-            )
+            sources.append({
+                "source": source_name,
+                "label": label,
+                "status": "error",
+                "item_count": 0,
+                "message": str(exc),
+            })
 
-    return {
-        "project": project,
-        "sources": sources,
-    }
+    return {"project": project, "sources": sources}
 
 
 @app.get("/projects/{project}/work-items")
@@ -239,10 +208,7 @@ def project_work_items(
         "project": project,
         "source": source,
         "count": len(items),
-        "work_items": [
-            item.model_dump(mode="json")
-            for item in items
-        ],
+        "work_items": [item.model_dump(mode="json") for item in items],
     }
 
 
@@ -297,59 +263,34 @@ def project_metrics_history(
         end_date=end_date,
     )
 
-
 @app.get("/projects/{project}/insights")
 def project_insights(
     project: str,
-    metric_names: list[str] = Query(
-        default=[
-            "wip",
-            "throughput",
-            "cycle_time",
-            "commitment_vs_completed",
-        ]
-    ),
-    days: int = 14,
     source: str = "jira",
+    days: int = 14,
 ):
     connector = get_delivery_connector(source)
-    metric_engine = MetricEngine(get_default_registry())
+    engine = MetricEngine(get_default_registry())
 
-    insight_service = InsightService(
+    service = InsightService(
         connector=connector,
-        metric_engine=metric_engine,
+        metric_engine=engine,
     )
 
-    historical_metric_names = [
-        "wip",
-        "throughput",
-        "cycle_time",
-    ]
-
-    result = insight_service.analyze(
+    result = service.analyze(
         project=project,
-        metric_names=metric_names,
-        historical_metric_names=historical_metric_names,
         days=days,
     )
 
     work_items = connector.get_work_items(project)
-
     history = []
-
     for item in work_items:
-        history.extend(
-            connector.get_work_item_history(item.id)
-        )
+        history.extend(connector.get_work_item_history(item.id))
 
-    evidence_service = EvidenceService()
-
-    result["insights"] = evidence_service.build(
+    result["insights"] = EvidenceService().build(
         insights=result.get("insights", []),
         work_items=work_items,
         histories=history,
     )
-
     result["source"] = source
-
     return result

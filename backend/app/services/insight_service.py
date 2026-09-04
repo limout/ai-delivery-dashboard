@@ -6,6 +6,16 @@ from app.metrics.historical import HistoricalMetrics
 from app.services.insight import InsightEngine
 
 
+DEFAULT_INSIGHT_METRICS = [
+    "wip",
+    "throughput",
+    "cycle_time",
+    "lead_time",
+    "velocity",
+    "commitment_vs_completed",
+]
+
+
 class InsightService:
     def __init__(self, connector, metric_engine):
         self.connector = connector
@@ -15,10 +25,13 @@ class InsightService:
     def analyze(
         self,
         project: str,
-        metric_names: list[str],
-        historical_metric_names: list[str],
+        metric_names: list[str] | None = None,
+        historical_metric_names: list[str] | None = None,
         days: int = 14,
     ) -> dict:
+        metric_names = metric_names or DEFAULT_INSIGHT_METRICS
+        historical_metric_names = historical_metric_names or DEFAULT_INSIGHT_METRICS
+
         work_items = self.connector.get_work_items(project)
 
         history = []
