@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
 
 import requests
 
 from app.ai.context import AIContext
 from app.ai.provider import AIProvider
+from app.ai.response import AIStructuredResponse
 
 
 class OllamaProvider(AIProvider):
@@ -20,17 +23,22 @@ class OllamaProvider(AIProvider):
         payload = {
             "model": self.model,
             "stream": False,
-            "format": "json",
+            "format": AIStructuredResponse.model_json_schema(),
             "messages": [
                 {
                     "role": "system",
                     "content": (
                         "You are an AI delivery intelligence assistant. "
+                        "The data source may be Jira, Azure DevOps, or another "
+                        "normalized delivery source. The source name does not "
+                        "change the required output format. "
                         "Use only the supplied delivery context. "
                         "Do not invent metrics, events, causes, or facts. "
-                        "Return only valid JSON matching the requested schema. "
+                        "Return only valid JSON matching the supplied schema. "
                         "Treat deterministic metrics with data_quality.status "
-                        "'good' as authoritative, including valid zero values."
+                        "'good' as authoritative, including valid zero values. "
+                        "Never return an alternative structure such as "
+                        "summary/detailed_analysis."
                     ),
                 },
                 {"role": "user", "content": prompt},

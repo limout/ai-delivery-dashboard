@@ -19,11 +19,22 @@ class FakeProvider:
 
         return json.dumps(
             {
-                "risk": {"title": "WIP congestion", "severity": "high"},
-                "facts": ["WIP is 9"],
-                "interpretation": ["The delivery system may be accumulating work."],
-                "recommendations": ["Review aging work."],
-                "data_gaps": ["Cycle time is unavailable."],
+                "risk": {
+                    "title": "WIP congestion",
+                    "severity": "high",
+                },
+                "facts": [
+                    "WIP is 9",
+                ],
+                "interpretation": [
+                    "The delivery system may be accumulating work.",
+                ],
+                "recommendations": [
+                    "Review aging work.",
+                ],
+                "data_gaps": [
+                    "Cycle time is unavailable.",
+                ],
             }
         )
 
@@ -34,10 +45,17 @@ def test_analyzer_returns_structured_response():
         source="jira",
         analysis_window_days=14,
         metrics={
-            "wip": {"value": 9, "data_quality": {"status": "good"}},
+            "wip": {
+                "value": 9,
+                "data_quality": {
+                    "status": "good",
+                },
+            },
             "cycle_time": {
                 "value": None,
-                "data_quality": {"status": "insufficient_data"},
+                "data_quality": {
+                    "status": "insufficient_data",
+                },
             },
         },
         historical={},
@@ -49,8 +67,11 @@ def test_analyzer_returns_structured_response():
     assert result["project"] == "KAN"
     assert result["source"] == "jira"
     assert result["model"] == "fake-model"
+
     assert result["analysis"]["risk"]["severity"] == "high"
-    assert result["analysis"]["facts"] == ["WIP is 9"]
+    assert result["analysis"]["facts"] == [
+        "WIP is 9",
+    ]
 
 
 def test_analyzer_rejects_non_json_response():
@@ -77,7 +98,9 @@ def test_analyzer_rejects_wrong_json_schema():
         def analyze(self, context, prompt):
             return json.dumps(
                 {
-                    "summary": {"current_wip": 2},
+                    "summary": {
+                        "current_wip": 2,
+                    },
                     "detailed_analysis": {},
                 }
             )
@@ -119,10 +142,11 @@ def test_analyzer_accepts_markdown_json_response():
     )
 
     result = AIAnalyzer(MarkdownProvider()).analyze(context)
+
     assert result["analysis"]["risk"]["title"] == "WIP congestion"
 
 
-def test_ollama_provider_requests_json_format(monkeypatch):
+def test_ollama_provider_requests_structured_response_schema(monkeypatch):
     captured = {}
 
     class FakeResponse:
@@ -132,7 +156,18 @@ def test_ollama_provider_requests_json_format(monkeypatch):
         def json(self):
             return {
                 "message": {
-                    "content": '{"risk":{"title":"test","severity":"low"}}'
+                    "content": json.dumps(
+                        {
+                            "risk": {
+                                "title": "test",
+                                "severity": "low",
+                            },
+                            "facts": [],
+                            "interpretation": [],
+                            "recommendations": [],
+                            "data_gaps": [],
+                        }
+                    )
                 }
             }
 
@@ -142,7 +177,10 @@ def test_ollama_provider_requests_json_format(monkeypatch):
         captured["timeout"] = timeout
         return FakeResponse()
 
-    monkeypatch.setattr("app.ai.ollama.requests.post", fake_post)
+    monkeypatch.setattr(
+        "app.ai.ollama.requests.post",
+        fake_post,
+    )
 
     provider = OllamaProvider(
         base_url="http://localhost:11434",
@@ -151,13 +189,35 @@ def test_ollama_provider_requests_json_format(monkeypatch):
 
     context = AIContext(
         project="KAN",
-        source="jira",
+        source="azure_devops",
         analysis_window_days=14,
     )
 
-    provider.analyze(context=context, prompt="test prompt")
+    provider.analyze(
+        context=context,
+        prompt="test prompt",
+    )
 
-    assert captured["json"]["format"] == "json"
+    schema = captured["json"]["format"]
+
+    assert schema["type"] == "object"
+    assert set(schema["required"]) == {
+        "risk",
+        "facts",
+        "interpretation",
+        "recommendations",
+        "data_gaps",
+    }
+
+    assert set(schema["properties"]) == {
+        "risk",
+        "facts",
+        "interpretation",
+        "recommendations",
+        "data_gaps",
+    }
+
+    assert captured["json"]["stream"] is False
 
 
 def test_parser_normalizes_single_string_fields():
@@ -176,9 +236,18 @@ def test_parser_normalizes_single_string_fields():
 
     result = AIAnalyzer._parse_response(raw)
 
-    assert result.facts == ["WIP is 9"]
-    assert result.interpretation == ["The system may be accumulating work"]
-    assert result.recommendations == ["Review aging work"]
+    assert result.facts == [
+        "WIP is 9",
+    ]
+
+    assert result.interpretation == [
+        "The system may be accumulating work"
+    ]
+
+    assert result.recommendations == [
+        "Review aging work"
+    ]
+
     assert result.data_gaps == []
 
 

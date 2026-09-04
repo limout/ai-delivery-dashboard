@@ -111,6 +111,178 @@
 
 
 
+
+        .dashboard-panel {
+            margin: 0 0 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .dashboard-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .dashboard-panel-header h2 {
+            margin: 0 0 5px;
+        }
+
+        .dashboard-panel-button {
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 6px;
+            background: #222;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .dashboard-panel-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .dashboard-panel-content {
+            margin-top: 18px;
+        }
+
+        .dashboard-panel-content.collapsed {
+            display: none;
+        }
+
+        .dashboard-panel .overview-status {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 700px) {
+            .dashboard-panel-header {
+                flex-direction: column;
+            }
+        }
+
+        .ai-section {
+            margin: 34px 0;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .ai-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .ai-header h2 { margin: 0 0 5px; }
+
+        .ai-subtitle {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .ai-header button {
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 6px;
+            background: #222;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .ai-header button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .ai-status {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .ai-risk {
+            border: 1px solid #e0e0e0;
+            border-left: 5px solid #999;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 18px;
+            background: #fafafa;
+        }
+
+        .ai-risk.high { border-left-color: #c62828; }
+        .ai-risk.medium { border-left-color: #ef6c00; }
+        .ai-risk.low { border-left-color: #2e7d32; }
+
+        .ai-risk-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #777;
+            margin-bottom: 5px;
+        }
+
+        .ai-risk-title {
+            font-size: 19px;
+            font-weight: 700;
+        }
+
+        .ai-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .ai-block {
+            border-top: 1px solid #eee;
+            padding-top: 14px;
+        }
+
+        .ai-block h3 {
+            margin: 0 0 9px;
+            font-size: 14px;
+        }
+
+        .ai-block ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .ai-block li {
+            margin-bottom: 7px;
+            line-height: 1.45;
+        }
+
+        .ai-empty {
+            color: #777;
+            font-size: 13px;
+        }
+
+        .ai-error {
+            color: #c62828;
+            background: #ffebee;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 700px) {
+            .ai-grid { grid-template-columns: 1fr; }
+            .ai-header { flex-direction: column; }
+        }
+
         .source-overview {
             margin: 28px 0 34px;
         }
@@ -456,13 +628,6 @@
             }
         }
 
-        .insights-section {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            margin-bottom: 35px;
-        }
 
         .insights-header {
             display: flex;
@@ -657,13 +822,13 @@
         </div>
     </section>
 
-    <section id="source-overview" class="source-overview" style="display:none;">
-        <div class="source-header">
+    <section id="source-overview" class="dashboard-panel" style="display:none;">
+        <div class="dashboard-panel-header">
             <div>
                 <h2 id="dashboard-context">Delivery Overview</h2>
                 <div id="source-status" class="overview-status"></div>
             </div>
-            <button id="work-items-toggle" onclick="toggleWorkItems()" style="display:none;">
+            <button id="work-items-toggle" class="dashboard-panel-button" onclick="toggleWorkItems()" style="display:none;">
                 View Work Items
             </button>
         </div>
@@ -706,15 +871,28 @@
     </section>
 
 
-    <section id="insights-section" class="insights-section" style="display:none;">
-        <div class="insights-header">
+    <section id="insights-section" class="dashboard-panel" style="display:none;">
+        <div class="dashboard-panel-header">
             <div>
                 <h2>Delivery Insights</h2>
                 <div id="insights-status" class="overview-status"></div>
             </div>
-            <button onclick="loadInsights()">Refresh Insights</button>
+            <button id="insights-toggle" class="dashboard-panel-button" onclick="toggleInsights()">Display Insights</button>
         </div>
-        <div id="insights-container"></div>
+        <div id="insights-container" class="dashboard-panel-content collapsed"></div>
+    </section>
+
+
+    <section id="ai-section" class="dashboard-panel ai-section" style="display:none;">
+        <div class="dashboard-panel-header">
+            <div>
+                <h2>AI Delivery Intelligence</h2>
+                <div class="ai-subtitle">Evidence-based delivery analysis powered by the configured AI provider.</div>
+            </div>
+            <button id="ai-analyze-button" class="dashboard-panel-button" onclick="loadAIAnalysis()">Analyze with AI</button>
+        </div>
+        <div id="ai-status" class="ai-status"></div>
+        <div id="ai-container" class="dashboard-panel-content"></div>
     </section>
 
     <div id="metrics"></div>
@@ -778,6 +956,7 @@
             >
                 Lead Time
             </button>
+
             <button
                 id="history-metric-velocity"
                 onclick="selectHistoricalMetric('velocity')"
@@ -789,7 +968,7 @@
                 id="history-metric-commitment_vs_completed"
                 onclick="selectHistoricalMetric('commitment_vs_completed')"
             >
-                Commitment Vs Completed
+                Commitment vs Completed
             </button>
         </div>
 
@@ -888,6 +1067,13 @@
         document.getElementById("metrics").innerHTML = "";
         document.getElementById("insights-section").style.display = "none";
         document.getElementById("insights-container").innerHTML = "";
+        document.getElementById("insights-container").classList.add("collapsed");
+        const insightsToggle = document.getElementById("insights-toggle");
+        insightsToggle.textContent = "Display Insights";
+        insightsToggle.disabled = false;
+        document.getElementById("ai-section").style.display = "none";
+        document.getElementById("ai-container").innerHTML = "";
+        document.getElementById("ai-status").textContent = "";
         document.getElementById("history-section").style.display = "none";
         document.getElementById("error").textContent = "";
     }
@@ -1353,9 +1539,17 @@
             }
 
             syncHistoricalMetricSelector(true);
-            loadInsights().catch(error => {
-                console.error("Insights load failed:", error);
-            });
+
+            const insightsSection = document.getElementById("insights-section");
+            insightsSection.style.display = "block";
+            document.getElementById("insights-container").classList.add("collapsed");
+            document.getElementById("insights-toggle").textContent = "Display Insights";
+
+            const aiSection = document.getElementById("ai-section");
+            aiSection.style.display = "block";
+            document.getElementById("ai-status").textContent =
+                "Ready to analyze the loaded delivery data.";
+
 
         } catch (error) {
 
@@ -1418,6 +1612,18 @@
 
         historySection.style.display = "block";
 
+        const isPlanningMetric =
+            selectedHistoricalMetric === "velocity" ||
+            selectedHistoricalMetric === "commitment_vs_completed";
+
+        document
+            .querySelectorAll(".history-controls button")
+            .forEach(button => {
+                button.style.display = isPlanningMetric
+                    ? "none"
+                    : "inline-block";
+            });
+
         document
             .querySelectorAll(".history-metric-selector button")
             .forEach(button => {
@@ -1456,19 +1662,25 @@
                 );
             });
 
+        const planningMetricSelected =
+            selectedHistoricalMetric === "velocity" ||
+            selectedHistoricalMetric === "commitment_vs_completed";
+
+        document
+            .querySelectorAll(".history-controls button")
+            .forEach(button => {
+                button.style.display = planningMetricSelected
+                    ? "none"
+                    : "inline-block";
+            });
+
         if (loadData || !currentMetricStillSelected) {
             loadHistoricalMetrics(selectedHistoricalDays);
         }
     }
 
 
-    function isPlanningHistoricalMetric(metric) {
-        return metric === "velocity" ||
-               metric === "commitment_vs_completed";
-    }
-
-
-function selectHistoricalMetric(metric) {
+    function selectHistoricalMetric(metric) {
 
         const selectedMetrics =
             getSelectedMetrics();
@@ -1888,11 +2100,8 @@ function selectHistoricalMetric(metric) {
             numericValues.length;
 
         status.textContent =
-            isPlanningHistoricalMetric(data.metric)
-                ? `${metricName} history · ${points.length} iterations · ` +
-                  `${measurableDays} measurable iteration${measurableDays === 1 ? "" : "s"}`
-                : `${metricName} history · ${points.length} days · ` +
-                  `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
+            `${metricName} history · ${points.length} days · ` +
+            `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
     }
 
 
@@ -1993,20 +2202,42 @@ function selectHistoricalMetric(metric) {
 
 
 
+    async function toggleInsights() {
+        const section = document.getElementById("insights-section");
+        const container = document.getElementById("insights-container");
+        const button = document.getElementById("insights-toggle");
+        const isExpanded = !container.classList.contains("collapsed");
+
+        // The panel itself stays visible. Only its content is collapsed/expanded.
+        if (isExpanded) {
+            container.classList.add("collapsed");
+            button.textContent = "Display Insights";
+            return;
+        }
+
+        await loadInsights();
+    }
+
+
     async function loadInsights() {
         const project = document.getElementById("project-select").value.trim();
         const source = document.getElementById("source-select").value;
         const section = document.getElementById("insights-section");
         const container = document.getElementById("insights-container");
         const status = document.getElementById("insights-status");
+        const button = document.getElementById("insights-toggle");
         const errorContainer = document.getElementById("error");
 
         if (!project || !source) {
-            section.style.display = "none";
+            document.getElementById("insights-container").classList.add("collapsed");
+            button.textContent = "Display Insights";
             return;
         }
 
         section.style.display = "block";
+        document.getElementById("insights-container").classList.remove("collapsed");
+        button.textContent = "Loading Insights...";
+        button.disabled = true;
         container.innerHTML = "";
         status.textContent = "Analyzing delivery signals...";
 
@@ -2023,11 +2254,17 @@ function selectHistoricalMetric(metric) {
 
             const data = await response.json();
             renderInsights(data);
+            button.textContent = "Hide Insights";
         } catch (error) {
             container.innerHTML = "";
             status.textContent = "";
             errorContainer.textContent =
                 "Error loading insights: " + error.message;
+            section.style.display = "none";
+            document.getElementById("insights-container").classList.add("collapsed");
+            button.textContent = "Display Insights";
+        } finally {
+            button.disabled = false;
         }
     }
 
@@ -2188,6 +2425,107 @@ function selectHistoricalMetric(metric) {
         }).join("");
     }
 
+
+
+
+    async function loadAIAnalysis() {
+        const project = document.getElementById("project-select").value.trim();
+        const source = document.getElementById("source-select").value;
+        const section = document.getElementById("ai-section");
+        const container = document.getElementById("ai-container");
+        const status = document.getElementById("ai-status");
+        const button = document.getElementById("ai-analyze-button");
+
+        if (!project || !source) {
+            section.style.display = "none";
+            return;
+        }
+
+        section.style.display = "block";
+        container.innerHTML = "";
+        status.textContent = "AI is analyzing delivery signals...";
+        button.disabled = true;
+        button.textContent = "Analyzing...";
+
+        try {
+            const response = await fetch(
+                `/projects/${encodeURIComponent(project)}/ai/analyze` +
+                `?source=${encodeURIComponent(source)}` +
+                `&days=14`
+            );
+
+            if (!response.ok) {
+                let message = "Failed to analyze delivery with AI";
+                try {
+                    const errorData = await response.json();
+                    message = errorData.detail || message;
+                } catch (_) {}
+                throw new Error(message);
+            }
+
+            const data = await response.json();
+            renderAIAnalysis(data);
+        } catch (error) {
+            status.textContent = "";
+            container.innerHTML =
+                `<div class="ai-error">${escapeHtml(error.message)}</div>`;
+        } finally {
+            button.disabled = false;
+            button.textContent = "Analyze with AI";
+        }
+    }
+
+    function renderAIAnalysis(data) {
+        const container = document.getElementById("ai-container");
+        const status = document.getElementById("ai-status");
+        const analysis = data.analysis || {};
+        const risk = analysis.risk || {};
+        const facts = Array.isArray(analysis.facts) ? analysis.facts : [];
+        const interpretation = Array.isArray(analysis.interpretation)
+            ? analysis.interpretation
+            : [];
+        const recommendations = Array.isArray(analysis.recommendations)
+            ? analysis.recommendations
+            : [];
+        const dataGaps = Array.isArray(analysis.data_gaps)
+            ? analysis.data_gaps
+            : [];
+
+        status.textContent = `${data.model || "AI provider"} · ${data.source || "unknown"} · ${data.analysis_window_days || 0}-day analysis`;
+
+        const renderList = items => items.length
+            ? `<ul>${items.map(item => `<li>${escapeHtml(String(item))}</li>`).join("")}</ul>`
+            : `<div class="ai-empty">None identified.</div>`;
+
+        container.innerHTML = `
+            <div class="ai-risk ${escapeHtml(risk.severity || "low")}">
+                <div class="ai-risk-label">${escapeHtml(risk.severity || "unknown")} risk</div>
+                <div class="ai-risk-title">${escapeHtml(risk.title || "No primary risk identified")}</div>
+            </div>
+
+            <div class="ai-grid">
+                <div class="ai-block">
+                    <h3>Facts</h3>
+                    ${renderList(facts)}
+                </div>
+
+                <div class="ai-block">
+                    <h3>Interpretation</h3>
+                    ${renderList(interpretation)}
+                </div>
+
+                <div class="ai-block">
+                    <h3>Recommendations</h3>
+                    ${renderList(recommendations)}
+                </div>
+
+                <div class="ai-block">
+                    <h3>Data Gaps</h3>
+                    ${renderList(dataGaps)}
+                </div>
+            </div>
+        `;
+    }
 
     async function initializeDashboard() {
 

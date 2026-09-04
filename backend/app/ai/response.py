@@ -18,7 +18,7 @@ class AIRisk(BaseModel):
 
 class AIStructuredResponse(BaseModel):
     risk: AIRisk
-    facts: list[str] = Field(default_factory=list)
-    interpretation: list[str] = Field(default_factory=list)
-    recommendations: list[str] = Field(default_factory=list)
-    data_gaps: list[str] = Field(default_factory=list)
+    facts: list[str]
+    interpretation: list[str]
+    recommendations: list[str]
+    data_gaps: list[str]
