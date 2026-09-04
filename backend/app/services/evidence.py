@@ -9,6 +9,7 @@ from app.core.models.work_item_history import WorkItemHistory
 
 ACTIVE_STATUSES = {"In Progress", "Blocked"}
 BLOCKED_STATUSES = {"Blocked"}
+MAX_EVIDENCE_ITEMS = 5
 
 
 class EvidenceService:
@@ -22,7 +23,9 @@ class EvidenceService:
         now: datetime | None = None,
     ) -> list[dict[str, Any]]:
         now = now or datetime.now(timezone.utc)
+
         by_item: dict[str, list[WorkItemHistory]] = {}
+
         for event in histories:
             by_item.setdefault(event.work_item_id, []).append(event)
 
@@ -30,35 +33,62 @@ class EvidenceService:
             events.sort(key=lambda event: event.timestamp)
 
         active = [
-            item for item in work_items
+            item
+            for item in work_items
             if item.status in ACTIVE_STATUSES
         ]
+
         blocked = [
-            item for item in work_items
+            item
+            for item in work_items
             if item.status in BLOCKED_STATUSES
         ]
 
         active_details = [
-            self._item_detail(item, by_item.get(item.id, []), now)
+            self._item_detail(
+                item,
+                by_item.get(item.id, []),
+                now,
+            )
             for item in active
         ]
-        active_details.sort(key=lambda item: item["age_days"], reverse=True)
+
+        active_details.sort(
+            key=lambda item: item["age_days"],
+            reverse=True,
+        )
 
         blocked_details = [
-            self._item_detail(item, by_item.get(item.id, []), now)
+            self._item_detail(
+                item,
+                by_item.get(item.id, []),
+                now,
+            )
             for item in blocked
         ]
-        blocked_details.sort(key=lambda item: item["age_days"], reverse=True)
+
+        blocked_details.sort(
+            key=lambda item: item["age_days"],
+            reverse=True,
+        )
 
         result = []
+
         for insight in insights:
             evidence = {
-                "wip_items": active_details,
-                "blocked_items": blocked_details,
+                "evidence_type": "delivery_work_items",
                 "wip_count": len(active),
                 "blocked_count": len(blocked),
+                "wip_items": active_details[:MAX_EVIDENCE_ITEMS],
+                "blocked_items": blocked_details[:MAX_EVIDENCE_ITEMS],
             }
-            result.append({**insight, "evidence": evidence})
+
+            result.append(
+                {
+                    **insight,
+                    "evidence": evidence,
+                }
+            )
 
         return result
 
@@ -69,11 +99,14 @@ class EvidenceService:
         now: datetime,
     ) -> dict[str, Any]:
         entered_active_at = None
+
         for event in history:
             if event.field != "status":
                 continue
+
             if event.to_value in ACTIVE_STATUSES:
                 entered_active_at = event.timestamp
+
             elif event.from_value in ACTIVE_STATUSES:
                 entered_active_at = None
 
@@ -81,11 +114,21 @@ class EvidenceService:
             entered_active_at = item.updated_at or item.created_at
 
         age_days = 0.0
+
         if entered_active_at is not None:
             timestamp = EvidenceService._aware(entered_active_at)
-            age_days = max(0.0, (EvidenceService._aware(now) - timestamp).total_seconds() / 86400)
+
+            age_days = max(
+                0.0,
+                (
+                    EvidenceService._aware(now) - timestamp
+                ).total_seconds()
+                / 86400,
+            )
 
         return {
+            "evidence_type": "work_item_age",
+            "source": item.source,
             "id": item.id,
             "title": item.title,
             "status": item.status,
@@ -98,4 +141,5 @@ class EvidenceService:
     def _aware(value: datetime) -> datetime:
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
+
         return value.astimezone(timezone.utc)

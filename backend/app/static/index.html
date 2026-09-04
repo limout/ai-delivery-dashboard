@@ -561,6 +561,66 @@
             color: #666;
             background: #fafafa;
         }
+
+        .insight-evidence {
+            margin-top: 18px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .evidence-summary {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .evidence-items {
+            display: grid;
+            gap: 8px;
+        }
+
+        .evidence-item {
+            padding: 10px 12px;
+            border: 1px solid #e2e2e2;
+            border-radius: 7px;
+            background: white;
+        }
+
+        .evidence-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .evidence-item-title {
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .evidence-item-id {
+            color: #666;
+            font-size: 12px;
+            margin-right: 6px;
+        }
+
+        .evidence-item-age {
+            white-space: nowrap;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .evidence-item-meta {
+            margin-top: 5px;
+            color: #777;
+            font-size: 12px;
+        }
+
+        .evidence-source {
+            margin-top: 10px;
+            color: #888;
+            font-size: 11px;
+        }
     </style>
 </head>
 
@@ -1954,55 +2014,154 @@
         const insights = data.insights || [];
 
         if (insights.length === 0) {
-            status.textContent = "No delivery risks detected from the available data.";
+            status.textContent =
+                "No delivery risks detected from the available data.";
+
             container.innerHTML =
                 '<div class="insights-empty">' +
                 'No actionable insights right now.' +
                 '</div>';
+
             return;
         }
 
         status.textContent =
             `${insights.length} insight${insights.length === 1 ? "" : "s"} detected`;
 
-        container.innerHTML = insights.map(insight => `
-            <div class="insight-card ${escapeHtml(insight.severity || "low")}">
-                <div class="insight-top">
-                    <span class="insight-severity">
-                        ${escapeHtml(insight.severity || "info")}
-                    </span>
-                    <span class="insight-title">
-                        ${escapeHtml(insight.title || "Delivery insight")}
-                    </span>
-                </div>
+        container.innerHTML = insights.map(insight => {
+            const evidence = insight.evidence || {};
+            const wipItems = evidence.wip_items || [];
+            const blockedItems = evidence.blocked_items || [];
 
-                <div class="insight-block">
-                    <div class="insight-label">Fact</div>
-                    <div class="insight-text">
-                        ${escapeHtml(insight.fact || "—")}
+            const evidenceItems = wipItems
+                .map(item => `
+                    <div class="evidence-item">
+                        <div class="evidence-item-header">
+                            <div class="evidence-item-title">
+                                <span class="evidence-item-id">
+                                    ${escapeHtml(item.id || "—")}
+                                </span>
+                                ${escapeHtml(item.title || "Untitled")}
+                            </div>
+
+                            <div class="evidence-item-age">
+                                ${item.age_days == null
+                                    ? "Age: —"
+                                    : `${Number(item.age_days).toFixed(2)} days`}
+                            </div>
+                        </div>
+
+                        <div class="evidence-item-meta">
+                            ${escapeHtml(item.status || "—")}
+                            · ${escapeHtml(item.assignee || "Unassigned")}
+                            · ${escapeHtml(item.priority || "No priority")}
+                        </div>
+                    </div>
+                `)
+                .join("");
+
+            const blockedSection = blockedItems.length
+                ? `
+                    <div class="evidence-summary">
+                        Blocked items: ${blockedItems.length}
+                    </div>
+                    <div class="evidence-items">
+                        ${blockedItems.map(item => `
+                            <div class="evidence-item">
+                                <div class="evidence-item-header">
+                                    <div class="evidence-item-title">
+                                        <span class="evidence-item-id">
+                                            ${escapeHtml(item.id || "—")}
+                                        </span>
+                                        ${escapeHtml(item.title || "Untitled")}
+                                    </div>
+
+                                    <div class="evidence-item-age">
+                                        ${item.age_days == null
+                                            ? "Age: —"
+                                            : `${Number(item.age_days).toFixed(2)} days`}
+                                    </div>
+                                </div>
+
+                                <div class="evidence-item-meta">
+                                    ${escapeHtml(item.status || "—")}
+                                    · ${escapeHtml(item.assignee || "Unassigned")}
+                                    · ${escapeHtml(item.priority || "No priority")}
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+                `
+                : "";
+
+            const source = wipItems[0]?.source || data.source || "unknown";
+
+            return `
+                <div class="insight-card ${escapeHtml(insight.severity || "low")}">
+                    <div class="insight-top">
+                        <span class="insight-severity">
+                            ${escapeHtml(insight.severity || "info")}
+                        </span>
+
+                        <span class="insight-title">
+                            ${escapeHtml(insight.title || "Delivery insight")}
+                        </span>
+                    </div>
+
+                    <div class="insight-block">
+                        <div class="insight-label">Fact</div>
+                        <div class="insight-text">
+                            ${escapeHtml(insight.fact || "—")}
+                        </div>
+                    </div>
+
+                    <div class="insight-block">
+                        <div class="insight-label">Signal</div>
+                        <div class="insight-text">
+                            ${escapeHtml(insight.signal || "—")}
+                        </div>
+                    </div>
+
+                    <div class="insight-block">
+                        <div class="insight-label">Recommendation</div>
+                        <div class="insight-text">
+                            ${escapeHtml(insight.recommendation || "—")}
+                        </div>
+                    </div>
+
+                    <div class="insight-evidence">
+                        <div class="insight-label">Evidence</div>
+
+                        <div class="evidence-summary">
+                            Showing ${wipItems.length} of
+                            ${evidence.wip_count ?? wipItems.length}
+                            WIP items
+                        </div>
+
+                        ${
+                            evidenceItems
+                                ? `<div class="evidence-items">${evidenceItems}</div>`
+                                : `<div class="evidence-summary">No WIP item evidence available.</div>`
+                        }
+
+                        ${blockedSection}
+
+                        <div class="evidence-source">
+                            Source: ${escapeHtml(formatSource(source))}
+                        </div>
+                    </div>
+
+                    <div class="insight-meta">
+                        Confidence:
+                        ${escapeHtml(insight.confidence || "unknown")}
+                        · Metric:
+                        ${escapeHtml(
+                            formatMetricName(insight.metric || "unknown")
+                        )}
                     </div>
                 </div>
-
-                <div class="insight-block">
-                    <div class="insight-label">Signal</div>
-                    <div class="insight-text">
-                        ${escapeHtml(insight.signal || "—")}
-                    </div>
-                </div>
-
-                <div class="insight-block">
-                    <div class="insight-label">Recommendation</div>
-                    <div class="insight-text">
-                        ${escapeHtml(insight.recommendation || "—")}
-                    </div>
-                </div>
-
-                <div class="insight-meta">
-                    Confidence: ${escapeHtml(insight.confidence || "unknown")}
-                    · Metric: ${escapeHtml(formatMetricName(insight.metric || "unknown"))}
-                </div>
-            </div>
-        `).join("");
+            `;
+        }).join("");
     }
 
 
