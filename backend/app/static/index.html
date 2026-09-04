@@ -455,6 +455,112 @@
                 padding: 20px;
             }
         }
+
+        .insights-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 35px;
+        }
+
+        .insights-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .insights-header h2 {
+            margin: 0;
+        }
+
+        .insights-header button {
+            padding: 9px 14px;
+            cursor: pointer;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .insight-card {
+            border: 1px solid #ddd;
+            border-left: 5px solid #999;
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 14px;
+            background: #fafafa;
+        }
+
+        .insight-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .insight-card.high { border-left-color: #b00020; background: #fff8f8; }
+        .insight-card.medium { border-left-color: #d97706; background: #fffaf3; }
+        .insight-card.low { border-left-color: #2563eb; background: #f7faff; }
+
+        .insight-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .insight-severity {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #eee;
+        }
+
+        .insight-card.high .insight-severity {
+            background: #ffebee;
+            color: #b00020;
+        }
+
+        .insight-card.medium .insight-severity {
+            background: #fff7ed;
+            color: #b45309;
+        }
+
+        .insight-title {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .insight-block {
+            margin-top: 12px;
+        }
+
+        .insight-label {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #777;
+            margin-bottom: 3px;
+        }
+
+        .insight-text {
+            line-height: 1.45;
+        }
+
+        .insight-meta {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #777;
+        }
+
+        .insights-empty {
+            padding: 20px;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            color: #666;
+            background: #fafafa;
+        }
     </style>
 </head>
 
@@ -539,6 +645,18 @@
         </div>
     </section>
 
+
+    <section id="insights-section" class="insights-section" style="display:none;">
+        <div class="insights-header">
+            <div>
+                <h2>Delivery Insights</h2>
+                <div id="insights-status" class="overview-status"></div>
+            </div>
+            <button onclick="loadInsights()">Refresh Insights</button>
+        </div>
+        <div id="insights-container"></div>
+    </section>
+
     <div id="metrics"></div>
 
     <div id="history-section" class="history-section" data-project-loaded="false" style="display: none;">
@@ -599,20 +717,6 @@
                 onclick="selectHistoricalMetric('lead_time')"
             >
                 Lead Time
-            </button>
-
-            <button
-                id="history-metric-velocity"
-                onclick="selectHistoricalMetric('velocity')"
-            >
-                Velocity
-            </button>
-
-            <button
-                id="history-metric-commitment_vs_completed"
-                onclick="selectHistoricalMetric('commitment_vs_completed')"
-            >
-                Commitment vs Completed
             </button>
         </div>
 
@@ -709,6 +813,8 @@
         document.getElementById("work-items-section").style.display = "none";
         document.getElementById("work-items-toggle").style.display = "none";
         document.getElementById("metrics").innerHTML = "";
+        document.getElementById("insights-section").style.display = "none";
+        document.getElementById("insights-container").innerHTML = "";
         document.getElementById("history-section").style.display = "none";
         document.getElementById("error").textContent = "";
     }
@@ -1174,6 +1280,9 @@
             }
 
             syncHistoricalMetricSelector(true);
+            loadInsights().catch(error => {
+                console.error("Insights load failed:", error);
+            });
 
         } catch (error) {
 
@@ -1198,9 +1307,7 @@
         "wip",
         "throughput",
         "cycle_time",
-        "lead_time",
-        "velocity",
-        "commitment_vs_completed"
+        "lead_time"
     ];
 
 
@@ -1219,13 +1326,20 @@
         const historyMetricSelector =
             document.querySelector(".history-metric-selector");
 
-        // Historical Metrics is its own analytical view.
-        // It should expose every historical metric we support, regardless
-        // of which snapshot cards the user selected above.
+        const selectedMetrics =
+            getSelectedMetrics();
+
         const selectedHistoricalMetrics =
-            historicalMetricNames.filter(metric =>
-                document.getElementById(`history-metric-${metric}`)
+            historicalMetricNames.filter(
+                metric => selectedMetrics.includes(metric)
             );
+
+        if (selectedHistoricalMetrics.length === 0) {
+
+            historySection.style.display = "none";
+
+            return;
+        }
 
         historySection.style.display = "block";
 
@@ -1275,7 +1389,10 @@
 
     function selectHistoricalMetric(metric) {
 
-        if (!historicalMetricNames.includes(metric)) {
+        const selectedMetrics =
+            getSelectedMetrics();
+
+        if (!selectedMetrics.includes(metric)) {
             return;
         }
 
@@ -1319,12 +1436,8 @@
 
         chart.innerHTML = "";
 
-        const isPlanningMetric =
-            selectedHistoricalMetric === "velocity" ||
-            selectedHistoricalMetric === "commitment_vs_completed";
-
         status.textContent =
-            `Loading ${isPlanningMetric ? "historical iteration" : "historical"} ${formatMetricName(selectedHistoricalMetric)}...`;
+            `Loading historical ${formatMetricName(selectedHistoricalMetric)}...`;
 
         document
             .querySelectorAll(".history-controls button")
@@ -1334,18 +1447,8 @@
             );
 
         document
-            .querySelectorAll(".history-controls button")
-            .forEach(button => {
-                button.style.display = isPlanningMetric
-                    ? "none"
-                    : "inline-block";
-            });
-
-        if (!isPlanningMetric) {
-            document
-                .getElementById(`days-${days}`)
-                .classList.add("active");
-        }
+            .getElementById(`days-${days}`)
+            .classList.add("active");
 
         try {
 
@@ -1643,7 +1746,7 @@
                     createElement("title");
 
                 tooltip.textContent =
-                    `${formatChartLabel(point)}: ` +
+                    `${formatChartDate(point.date)}: ` +
                     `${formatHistoricalValue(point.value, data.unit)}`;
 
                 circle.appendChild(tooltip);
@@ -1693,7 +1796,7 @@
                     );
 
                 label.textContent =
-                    formatChartLabel(point);
+                    formatChartDate(point.date);
 
                 chart.appendChild(label);
             }
@@ -1703,13 +1806,9 @@
         const measurableDays =
             numericValues.length;
 
-        const planningMetric =
-            data.metric === "velocity" ||
-            data.metric === "commitment_vs_completed";
-
-        status.textContent = planningMetric
-            ? `${metricName} history · ${points.length} iterations · ${measurableDays} measurable iteration${measurableDays === 1 ? "" : "s"}`
-            : `${metricName} history · ${points.length} days · ${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
+        status.textContent =
+            `${metricName} history · ${points.length} days · ` +
+            `${measurableDays} measurable day${measurableDays === 1 ? "" : "s"}`;
     }
 
 
@@ -1781,7 +1880,7 @@
             return "N/A";
         }
 
-        if (unit === "days" || unit === "percent") {
+        if (unit === "days") {
 
             return Number(value)
                 .toFixed(2);
@@ -1789,16 +1888,6 @@
 
         return Math.round(value)
             .toString();
-    }
-
-
-    function formatChartLabel(point) {
-
-        if (point.label) {
-            return point.label;
-        }
-
-        return formatChartDate(point.date);
     }
 
 
@@ -1816,6 +1905,104 @@
                 day: "numeric"
             }
         );
+    }
+
+
+
+    async function loadInsights() {
+        const project = document.getElementById("project-select").value.trim();
+        const source = document.getElementById("source-select").value;
+        const section = document.getElementById("insights-section");
+        const container = document.getElementById("insights-container");
+        const status = document.getElementById("insights-status");
+        const errorContainer = document.getElementById("error");
+
+        if (!project || !source) {
+            section.style.display = "none";
+            return;
+        }
+
+        section.style.display = "block";
+        container.innerHTML = "";
+        status.textContent = "Analyzing delivery signals...";
+
+        try {
+            const response = await fetch(
+                `/projects/${encodeURIComponent(project)}/insights` +
+                `?source=${encodeURIComponent(source)}` +
+                `&days=14`
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to load insights");
+            }
+
+            const data = await response.json();
+            renderInsights(data);
+        } catch (error) {
+            container.innerHTML = "";
+            status.textContent = "";
+            errorContainer.textContent =
+                "Error loading insights: " + error.message;
+        }
+    }
+
+
+    function renderInsights(data) {
+        const container = document.getElementById("insights-container");
+        const status = document.getElementById("insights-status");
+        const insights = data.insights || [];
+
+        if (insights.length === 0) {
+            status.textContent = "No delivery risks detected from the available data.";
+            container.innerHTML =
+                '<div class="insights-empty">' +
+                'No actionable insights right now.' +
+                '</div>';
+            return;
+        }
+
+        status.textContent =
+            `${insights.length} insight${insights.length === 1 ? "" : "s"} detected`;
+
+        container.innerHTML = insights.map(insight => `
+            <div class="insight-card ${escapeHtml(insight.severity || "low")}">
+                <div class="insight-top">
+                    <span class="insight-severity">
+                        ${escapeHtml(insight.severity || "info")}
+                    </span>
+                    <span class="insight-title">
+                        ${escapeHtml(insight.title || "Delivery insight")}
+                    </span>
+                </div>
+
+                <div class="insight-block">
+                    <div class="insight-label">Fact</div>
+                    <div class="insight-text">
+                        ${escapeHtml(insight.fact || "—")}
+                    </div>
+                </div>
+
+                <div class="insight-block">
+                    <div class="insight-label">Signal</div>
+                    <div class="insight-text">
+                        ${escapeHtml(insight.signal || "—")}
+                    </div>
+                </div>
+
+                <div class="insight-block">
+                    <div class="insight-label">Recommendation</div>
+                    <div class="insight-text">
+                        ${escapeHtml(insight.recommendation || "—")}
+                    </div>
+                </div>
+
+                <div class="insight-meta">
+                    Confidence: ${escapeHtml(insight.confidence || "unknown")}
+                    · Metric: ${escapeHtml(formatMetricName(insight.metric || "unknown"))}
+                </div>
+            </div>
+        `).join("");
     }
 
 
