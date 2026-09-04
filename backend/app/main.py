@@ -11,7 +11,7 @@ from app.metrics.engine import MetricEngine
 from app.metrics.historical import HistoricalMetrics
 from app.metrics.registry import get_default_registry
 from app.services.delivery_metrics import DeliveryMetricsService
-
+from app.services.insight_service import InsightService
 
 app = FastAPI(
     title="AI Delivery Dashboard",
