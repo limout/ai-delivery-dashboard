@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -342,4 +342,10 @@ def project_ai_analyze(
         source=source,
     )
 
-    return AIAnalyzer(provider=OllamaProvider()).analyze(context)
+    try:
+        return AIAnalyzer(provider=OllamaProvider()).analyze(context)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc),
+        ) from exc

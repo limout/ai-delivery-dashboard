@@ -1,27 +1,17 @@
-import json
+from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import json
 
 from app.ai.context import AIContext
 from app.ai.provider import AIProvider
-
-
-class AIRisk(BaseModel):
-    title: str
-    severity: str
-
-
-class AIStructuredResponse(BaseModel):
-    risk: AIRisk
-    facts: list[str] = Field(default_factory=list)
-    interpretation: list[str] = Field(default_factory=list)
-    recommendations: list[str] = Field(default_factory=list)
-    data_gaps: list[str] = Field(default_factory=list)
+from app.ai.response import AIStructuredResponse
+from app.ai.validator import AIResponseValidator
 
 
 class AIAnalyzer:
     def __init__(self, provider: AIProvider):
         self.provider = provider
+        self.validator = AIResponseValidator()
 
     def analyze(self, context: AIContext) -> dict:
         raw_answer = self.provider.analyze(
@@ -30,6 +20,11 @@ class AIAnalyzer:
         )
 
         structured = self._parse_response(raw_answer)
+
+        self.validator.validate(
+            response=structured,
+            context=context,
+        )
 
         return {
             "project": context.project,
@@ -49,16 +44,13 @@ class AIAnalyzer:
 
         return (
             "You are an AI delivery intelligence assistant.\n\n"
-
             "Your task is to reason over an already analyzed delivery context.\n"
             "The deterministic delivery layer has already calculated metrics, "
             "historical trends, and delivery insights.\n\n"
-
             "DATA AUTHORITY RULES:\n"
             "- Current values in 'metrics' are authoritative measurements.\n"
             "- Historical values in 'historical' are authoritative observations.\n"
-            "- 'insights[].evidence' is authoritative structured evidence for "
-            "the corresponding insight.\n"
+            "- 'insights[].evidence' is authoritative structured evidence.\n"
             "- Treat deterministic evidence as more authoritative than your "
             "own assumptions.\n"
             "- Do not recalculate or reinterpret metric values.\n"
@@ -66,39 +58,32 @@ class AIAnalyzer:
             "- A metric with value = null or data_quality.status = "
             "'insufficient_data' is unavailable evidence.\n"
             "- Never describe unavailable data as if it were observed.\n"
-            "- Do not treat sample size as a data quality problem when "
-            "data_quality.status = 'good'.\n"
-            "- Do not add a metric to data_gaps merely because its sample size "
-            "is smaller than another metric.\n"
-            "- If a metric has data_quality.status = 'good', do not describe "
-            "that metric as having limited or insufficient data.\n\n"
-
+            "- Never mention sample size as a data gap.\n"
+            "- If data_quality.status = 'good', never describe that metric "
+            "as limited, insufficient, incomplete, or unreliable.\n"
+            "- data_gaps may contain only genuinely unavailable metrics.\n\n"
             "REASONING RULES:\n"
             "- Separate facts, interpretation, and recommendations.\n"
-            "- A fact must be directly supported by the supplied context.\n"
-            "- An interpretation may connect multiple observed facts, but must "
+            "- Facts must be directly supported by the supplied context.\n"
+            "- Keep facts atomic. Do not combine facts with interpretation.\n"
+            "- Interpretation may connect multiple observed facts, but must "
             "remain cautious.\n"
             "- Do not claim a root cause unless the supplied data establishes it.\n"
-            "- A blocker, process problem, team problem, or other cause must not "
-            "be presented as confirmed unless explicitly supported by the data.\n"
+            "- Do not present a possible cause as a confirmed fact.\n"
             "- When the data shows a risk but does not establish its cause, "
-            "say that the cause is not established by the available data.\n"
-            "- Use historical trends when deciding whether a current signal "
-            "represents deterioration or improvement.\n"
-            "- Recommendations must be directly actionable from available "
-            "evidence. Do not recommend investigating hypothetical causes "
-            "unless the recommendation is explicitly framed as a validation step.\n"
-            "- Do not recommend collecting data for a metric that already has "
-            "data_quality.status = 'good'.\n"
-            "- Only mention specific work items when they appear in the supplied "
+            "explicitly say that the cause is not established.\n"
+            "- Recommendations must follow from available evidence.\n"
+            "- Recommendations may propose validation steps for unconfirmed "
+            "causes, but must not present those causes as facts.\n"
+            "- Only mention specific work items when they appear in supplied "
             "evidence.\n\n"
-
-            "IMPORTANT:\n"
-            "The deterministic Insight Engine may already provide a signal and "
-            "recommendation. You may refine their wording, but you must not "
-            "turn an unproven explanation into a confirmed fact.\n\n"
-
-            "Return ONLY valid JSON. Do not use Markdown or code fences.\n"
+            "OUTPUT RULES:\n"
+            "- Return ONLY valid JSON.\n"
+            "- Do not use Markdown.\n"
+            "- Do not invent a different JSON structure.\n"
+            "- Do not return summary/detailed_analysis or any other schema.\n"
+            "- The response MUST contain exactly these top-level fields: "
+            "risk, facts, interpretation, recommendations, data_gaps.\n\n"
             "Use exactly this structure:\n"
             "{\n"
             '  "risk": {"title": "string", "severity": "low|medium|high"},\n'
@@ -107,18 +92,15 @@ class AIAnalyzer:
             '  "recommendations": ["string"],\n'
             '  "data_gaps": ["string"]\n'
             "}\n\n"
-
-            "Field rules:\n"
+            "FIELD RULES:\n"
             "- risk: the single most important current delivery risk.\n"
-            "- facts: directly observed/calculated evidence from the context only.\n"
-            "- interpretation: cautious reasoning based on those facts. Do not "
-            "state a possible cause as a confirmed fact.\n"
-            "- recommendations: practical actions for the delivery manager that "
-            "follow from the evidence.\n"
-            "- data_gaps: only genuinely unavailable metrics/data. Use an empty "
-            "array when there are no relevant gaps.\n\n"
-
-            "DELIVERY CONTEXT:\n" + context_json
+            "- facts: directly observed/calculated evidence only.\n"
+            "- interpretation: cautious reasoning based on facts.\n"
+            "- recommendations: practical actions for the delivery manager.\n"
+            "- data_gaps: only unavailable metrics/data.\n"
+            "- Use an empty data_gaps array when there are no relevant gaps.\n\n"
+            "DELIVERY CONTEXT:\n"
+            + context_json
         )
 
     @staticmethod
@@ -127,13 +109,10 @@ class AIAnalyzer:
 
         if text.startswith("```"):
             lines = text.splitlines()
-
             if lines and lines[0].strip().startswith("```"):
                 lines = lines[1:]
-
             if lines and lines[-1].strip() == "```":
                 lines = lines[:-1]
-
             text = "\n".join(lines).strip()
 
         try:
@@ -148,6 +127,19 @@ class AIAnalyzer:
                 "AI provider returned JSON with an invalid top-level structure"
             )
 
+        expected_fields = {
+            "risk",
+            "facts",
+            "interpretation",
+            "recommendations",
+            "data_gaps",
+        }
+
+        if not expected_fields.issubset(payload.keys()):
+            raise ValueError(
+                "AI provider returned JSON with an invalid response schema"
+            )
+
         for field in (
             "facts",
             "interpretation",
@@ -155,7 +147,6 @@ class AIAnalyzer:
             "data_gaps",
         ):
             value = payload.get(field)
-
             if isinstance(value, str):
                 payload[field] = [value]
             elif value is None:
