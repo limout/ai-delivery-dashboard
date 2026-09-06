@@ -161,7 +161,23 @@ def test_ollama_provider_requests_json_format(monkeypatch):
         prompt="test prompt",
     )
 
-    assert captured["json"]["format"] == AIStructuredResponse.model_json_schema()
+    schema = captured["json"]["format"]
+    expected_schema = AIStructuredResponse.model_json_schema()
+
+    assert schema["type"] == expected_schema["type"]
+    assert schema["properties"] == expected_schema["properties"]
+
+    # impact and investigate are part of the provider contract even though
+    # the Pydantic model keeps defaults for backward-compatible parsing.
+    assert set(schema["required"]) == {
+        "risk",
+        "facts",
+        "interpretation",
+        "impact",
+        "investigate",
+        "recommendations",
+        "data_gaps",
+    }
 
 
 def test_parser_normalizes_single_string_fields():

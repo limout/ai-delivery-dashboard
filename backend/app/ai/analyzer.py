@@ -149,7 +149,7 @@ class AIAnalyzer:
             "- In particular, if historical velocity contains iteration points, "
             "historical velocity is available for trend analysis.\n\n"
             "REASONING RULES:\n"
-            "- Separate facts, interpretation, and recommendations.\n"
+            "- Separate facts, interpretation, impact, investigation, and recommendations.\n"
             "- Facts must be directly supported by the supplied context.\n"
             "- Keep facts atomic. Do not combine facts with interpretation.\n"
             "- Interpretation may connect multiple observed facts, but must "
@@ -159,6 +159,8 @@ class AIAnalyzer:
             "- When the data shows a risk but does not establish its cause, "
             "explicitly say that the cause is not established.\n"
             "- Recommendations must follow from available evidence.\n"
+"- Impact must describe delivery consequences, not invent root causes.\n"
+"- Investigate items must be concrete and evidence-oriented; use work item IDs only when supplied in evidence.\n"
             "- Recommendations may propose validation steps for unconfirmed "
             "causes, but must not present those causes as facts.\n"
             "- Only mention specific work items when they appear in supplied "
@@ -175,6 +177,8 @@ class AIAnalyzer:
             '  "risk": {"title": "string", "severity": "low|medium|high"},\n'
             '  "facts": ["string"],\n'
             '  "interpretation": ["string"],\n'
+            '  "impact": ["string"],\n'
+            '  "investigate": ["string"],\n'
             '  "recommendations": ["string"],\n'
             '  "data_gaps": ["string"]\n'
             "}\n\n"
@@ -290,6 +294,8 @@ class AIAnalyzer:
         for field in (
             "facts",
             "interpretation",
+            "impact",
+            "investigate",
             "recommendations",
             "data_gaps",
         ):

@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -13,8 +13,8 @@ from app.metrics.registry import get_default_registry
 from app.services.delivery_metrics import DeliveryMetricsService
 from app.services.evidence import EvidenceService
 from app.ai.context import AIContextBuilder
-from app.ai.ollama import OllamaProvider
 from app.ai.analyzer import AIAnalyzer
+from app.ai.factory import get_ai_provider
 from app.services.insight_service import InsightService
 
 app = FastAPI(
@@ -99,8 +99,6 @@ class CombinedDeliveryConnector(DeliveryConnector):
         if connector is not None:
             return connector.get_work_item_history(work_item_id)
 
-        # History can also be requested independently of get_work_items().
-        # Try each source until one accepts the ID.
         history = []
         for candidate in self.connectors:
             try:
@@ -141,7 +139,10 @@ def get_delivery_connector(source: str) -> DeliveryConnector:
 def sources():
     result = []
 
-    for source_name, label in (("jira", "Jira"), ("azure_devops", "Azure DevOps")):
+    for source_name, label in (
+        ("jira", "Jira"),
+        ("azure_devops", "Azure DevOps"),
+    ):
         try:
             connector = get_connector(source_name)
             projects = connector.get_projects()
@@ -245,7 +246,6 @@ def project_metrics_history(
     connector = get_delivery_connector(source)
 
     work_items = connector.get_work_items(project)
-
     history = []
 
     for item in work_items:
@@ -265,6 +265,7 @@ def project_metrics_history(
         start_date=start_date,
         end_date=end_date,
     )
+
 
 @app.get("/projects/{project}/insights")
 def project_insights(
@@ -287,6 +288,7 @@ def project_insights(
 
     work_items = connector.get_work_items(project)
     history = []
+
     for item in work_items:
         history.extend(connector.get_work_item_history(item.id))
 
@@ -296,7 +298,9 @@ def project_insights(
         histories=history,
     )
     result["source"] = source
+
     return result
+
 
 @app.get("/projects/{project}/ai/context")
 def project_ai_context(
@@ -304,11 +308,8 @@ def project_ai_context(
     source: str = "jira",
     days: int = 14,
 ):
-    """Return deterministic delivery context prepared for an AI model.
+    """Return deterministic delivery context prepared for an AI model."""
 
-    The endpoint deliberately reuses the existing insights pipeline and does
-    not call an LLM. AIContextBuilder only packages already-derived facts.
-    """
     analysis = project_insights(
         project=project,
         source=source,
@@ -323,7 +324,6 @@ def project_ai_context(
     return context.model_dump(mode="json")
 
 
-
 @app.get("/projects/{project}/ai/analyze")
 def project_ai_analyze(
     project: str,
@@ -331,6 +331,7 @@ def project_ai_analyze(
     days: int = 14,
 ):
     """Analyze deterministic delivery context with the configured AI provider."""
+
     analysis = project_insights(
         project=project,
         source=source,
@@ -342,10 +343,4 @@ def project_ai_analyze(
         source=source,
     )
 
-    try:
-        return AIAnalyzer(provider=OllamaProvider()).analyze(context)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=str(exc),
-        ) from exc
+    return AIAnalyzer(provider=get_ai_provider()).analyze(context)

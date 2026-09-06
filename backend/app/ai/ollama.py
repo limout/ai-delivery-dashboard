@@ -10,7 +10,12 @@ from app.ai.response import AIStructuredResponse
 
 
 class OllamaProvider(AIProvider):
-    def __init__(self, base_url=None, model=None, timeout=120):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: int = 120,
+    ):
         self.base_url = (
             base_url
             or os.getenv("OLLAMA_BASE_URL")
@@ -20,10 +25,21 @@ class OllamaProvider(AIProvider):
         self.timeout = timeout
 
     def analyze(self, context: AIContext, prompt: str) -> str:
+        schema = AIStructuredResponse.model_json_schema()
+
+        # impact and investigate are part of the new AI contract and must be
+        # required in the provider schema. They retain Pydantic defaults so
+        # legacy/unit-test responses remain parseable.
+        required = list(schema.get("required", []))
+        for field in ("impact", "investigate"):
+            if field not in required:
+                required.append(field)
+        schema["required"] = required
+
         payload = {
             "model": self.model,
             "stream": False,
-            "format": AIStructuredResponse.model_json_schema(),
+            "format": schema,
             "messages": [
                 {
                     "role": "system",
@@ -51,7 +67,4 @@ class OllamaProvider(AIProvider):
             timeout=self.timeout,
         )
         response.raise_for_status()
-
-        return str(
-            response.json().get("message", {}).get("content", "")
-        ).strip()
+        return str(response.json().get("message", {}).get("content", "")).strip()

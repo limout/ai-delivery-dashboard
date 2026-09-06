@@ -2484,6 +2484,12 @@
         const interpretation = Array.isArray(analysis.interpretation)
             ? analysis.interpretation
             : [];
+        const impact = Array.isArray(analysis.impact)
+            ? analysis.impact
+            : [];
+        const investigate = Array.isArray(analysis.investigate)
+            ? analysis.investigate
+            : [];
         const recommendations = Array.isArray(analysis.recommendations)
             ? analysis.recommendations
             : [];
@@ -2512,6 +2518,16 @@
                 <div class="ai-block">
                     <h3>Interpretation</h3>
                     ${renderList(interpretation)}
+                </div>
+
+                <div class="ai-block">
+                    <h3>Impact</h3>
+                    ${renderList(impact)}
+                </div>
+
+                <div class="ai-block">
+                    <h3>What to Investigate</h3>
+                    ${renderList(investigate)}
                 </div>
 
                 <div class="ai-block">

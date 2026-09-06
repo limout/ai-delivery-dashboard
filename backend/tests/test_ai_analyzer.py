@@ -205,6 +205,8 @@ def test_ollama_provider_requests_structured_response_schema(monkeypatch):
         "risk",
         "facts",
         "interpretation",
+        "impact",
+        "investigate",
         "recommendations",
         "data_gaps",
     }
@@ -213,6 +215,8 @@ def test_ollama_provider_requests_structured_response_schema(monkeypatch):
         "risk",
         "facts",
         "interpretation",
+        "impact",
+        "investigate",
         "recommendations",
         "data_gaps",
     }
