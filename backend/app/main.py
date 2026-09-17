@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from pathlib import Path
 
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
@@ -344,3 +345,47 @@ def project_ai_analyze(
     )
 
     return AIAnalyzer(provider=get_ai_provider()).analyze(context)
+
+
+def _spa_dist_dir() -> Path:
+    return Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+
+def _register_spa_routes() -> None:
+    """Serve the Vite build at /app when it exists.
+
+    The classic dashboard remains at GET /. API routes are unchanged.
+    """
+    dist = _spa_dist_dir()
+    index = dist / "index.html"
+    if not index.is_file():
+        return
+
+    assets = dist / "assets"
+    if assets.is_dir():
+        app.mount(
+            "/app/assets",
+            StaticFiles(directory=str(assets)),
+            name="spa_assets",
+        )
+
+    @app.get("/app", include_in_schema=False)
+    @app.get("/app/", include_in_schema=False)
+    def spa_index():
+        return FileResponse(index)
+
+    @app.get("/app/{spa_path:path}", include_in_schema=False)
+    def spa_fallback(spa_path: str):
+        candidate = (dist / spa_path).resolve()
+        try:
+            candidate.relative_to(dist.resolve())
+        except ValueError:
+            return FileResponse(index)
+
+        if candidate.is_file():
+            return FileResponse(candidate)
+
+        return FileResponse(index)
+
+
+_register_spa_routes()
