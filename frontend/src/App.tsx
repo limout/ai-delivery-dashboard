@@ -2,13 +2,11 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "@/layouts/app-layout";
 import { DashboardProvider } from "@/lib/dashboard-context";
-import {
-  AIAnalysisPage,
-  InsightsPage,
-  MetricsPage,
-  OverviewPage,
-  WorkItemsPage,
-} from "@/pages/placeholder-pages";
+import { AIAnalysisPage } from "@/pages/ai-analysis-page";
+import { InsightsPage } from "@/pages/insights-page";
+import { MetricsPage } from "@/pages/metrics-page";
+import { OverviewPage } from "@/pages/overview-page";
+import { WorkItemsPage } from "@/pages/work-items-page";
 
 export default function App() {
   return (

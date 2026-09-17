@@ -13,6 +13,7 @@ import { api } from "@/api/client";
 import {
   formatSource,
   HISTORICAL_METRIC_NAMES,
+  type HistoricalMetricName,
 } from "@/lib/format";
 import type {
   HistoricalMetricsResponse,
@@ -39,16 +40,21 @@ type DashboardContextValue = {
   errorMessage: string;
   loadButtonLabel: LoadButtonLabel;
   isLoadingDashboard: boolean;
+  isHistoryLoading: boolean;
   projectLoaded: boolean;
   loadedSource: string;
   loadedProject: string;
   workItems: WorkItem[];
   metrics: ProjectMetricsResponse | null;
   historical: HistoricalMetricsResponse | null;
+  selectedHistoricalMetric: string;
+  selectedHistoricalDays: number;
   selectSource: (source: string) => void;
   selectProject: (projectKey: string) => void;
   toggleMetric: (metricName: string, checked: boolean) => void;
   loadDashboard: () => Promise<void>;
+  selectHistoricalMetric: (metric: string) => void;
+  selectHistoricalDays: (days: number) => void;
 };
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -72,6 +78,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [loadButtonLabel, setLoadButtonLabel] =
     useState<LoadButtonLabel>("Load Dashboard");
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [projectLoaded, setProjectLoaded] = useState(false);
   const [loadedSource, setLoadedSource] = useState("");
   const [loadedProject, setLoadedProject] = useState("");
@@ -80,20 +87,33 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [historical, setHistorical] = useState<HistoricalMetricsResponse | null>(
     null,
   );
+  const [selectedHistoricalMetric, setSelectedHistoricalMetric] = useState("wip");
+  const [selectedHistoricalDays, setSelectedHistoricalDays] = useState(14);
 
   const selectedMetricNamesRef = useRef(selectedMetricNames);
   selectedMetricNamesRef.current = selectedMetricNames;
-  const selectedHistoricalMetricRef = useRef("wip");
+  const selectedHistoricalMetricRef = useRef(selectedHistoricalMetric);
+  selectedHistoricalMetricRef.current = selectedHistoricalMetric;
+  const selectedHistoricalDaysRef = useRef(selectedHistoricalDays);
+  selectedHistoricalDaysRef.current = selectedHistoricalDays;
+  const loadedSourceRef = useRef(loadedSource);
+  loadedSourceRef.current = loadedSource;
+  const loadedProjectRef = useRef(loadedProject);
+  loadedProjectRef.current = loadedProject;
   const projectRequestRef = useRef(0);
   const dashboardRequestRef = useRef(0);
+  const historyRequestRef = useRef(0);
 
   const clearLoadedDashboard = useCallback(() => {
+    dashboardRequestRef.current += 1;
+    historyRequestRef.current += 1;
     setProjectLoaded(false);
     setLoadedSource("");
     setLoadedProject("");
     setWorkItems([]);
     setMetrics(null);
     setHistorical(null);
+    setIsHistoryLoading(false);
     setErrorMessage("");
   }, []);
 
@@ -147,7 +167,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const selectSource = useCallback(
     (source: string) => {
-      dashboardRequestRef.current += 1;
       const requestId = ++projectRequestRef.current;
 
       setSelectedSource(source);
@@ -199,7 +218,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const selectProject = useCallback(
     (projectKey: string) => {
-      dashboardRequestRef.current += 1;
       setSelectedProject(projectKey);
       clearLoadedDashboard();
       setSelectionStatus(
@@ -210,6 +228,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     },
     [clearLoadedDashboard, selectedSource],
   );
+
+  const resolveHistoryMetric = useCallback((metricNames: string[]) => {
+    const candidates = HISTORICAL_METRIC_NAMES.filter((name) =>
+      metricNames.includes(name),
+    );
+    if (candidates.length === 0) {
+      return null;
+    }
+    const preferred = selectedHistoricalMetricRef.current;
+    return candidates.includes(preferred as HistoricalMetricName)
+      ? preferred
+      : candidates[0];
+  }, []);
 
   const runLoad = useCallback(
     async (metricNames: string[]) => {
@@ -277,41 +308,39 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           `${items.length} normalized work items available`,
         );
 
-        const historicalCandidates = HISTORICAL_METRIC_NAMES.filter((name) =>
-          metricNames.includes(name),
-        );
-
-        if (historicalCandidates.length === 0) {
+        const historyMetric = resolveHistoryMetric(metricNames);
+        if (!historyMetric) {
           setHistorical(null);
-        } else {
-          const preferred = selectedHistoricalMetricRef.current;
-          const historyMetric = historicalCandidates.includes(
-            preferred as (typeof HISTORICAL_METRIC_NAMES)[number],
-          )
-            ? preferred
-            : historicalCandidates[0];
-          selectedHistoricalMetricRef.current = historyMetric;
+          return;
+        }
 
-          try {
-            const historyData = await api.getMetricsHistory(
-              project,
-              source,
-              historyMetric,
-              14,
-            );
-            if (requestId !== dashboardRequestRef.current) {
-              return;
-            }
-            setHistorical(historyData);
-          } catch {
-            if (requestId !== dashboardRequestRef.current) {
-              return;
-            }
-            setHistorical(null);
-            setErrorMessage(
-              "Error loading historical metrics: Failed to load historical metrics",
-            );
+        setSelectedHistoricalMetric(historyMetric);
+        selectedHistoricalMetricRef.current = historyMetric;
+        const days = selectedHistoricalDaysRef.current;
+        const historyId = ++historyRequestRef.current;
+
+        try {
+          const historyData = await api.getMetricsHistory(
+            project,
+            source,
+            historyMetric,
+            days,
+          );
+          if (
+            requestId !== dashboardRequestRef.current ||
+            historyId !== historyRequestRef.current
+          ) {
+            return;
           }
+          setHistorical(historyData);
+        } catch {
+          if (requestId !== dashboardRequestRef.current) {
+            return;
+          }
+          setHistorical(null);
+          setErrorMessage(
+            "Error loading historical metrics: Failed to load historical metrics",
+          );
         }
       } catch (error) {
         if (requestId !== dashboardRequestRef.current) {
@@ -330,7 +359,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [selectedProject, selectedSource],
+    [resolveHistoryMetric, selectedProject, selectedSource],
   );
 
   const loadDashboard = useCallback(async () => {
@@ -362,6 +391,63 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     [projectLoaded, runLoad, selectedMetricNames],
   );
 
+  const fetchHistory = useCallback(async (metric: string, days: number) => {
+    const source = loadedSourceRef.current;
+    const project = loadedProjectRef.current;
+    if (!source || !project) {
+      return;
+    }
+
+    const requestId = ++historyRequestRef.current;
+    setIsHistoryLoading(true);
+
+    try {
+      const historyData = await api.getMetricsHistory(
+        project,
+        source,
+        metric,
+        days,
+      );
+      if (requestId !== historyRequestRef.current) {
+        return;
+      }
+      setHistorical(historyData);
+    } catch {
+      if (requestId !== historyRequestRef.current) {
+        return;
+      }
+      setHistorical(null);
+      setErrorMessage(
+        "Error loading historical metrics: Failed to load historical metrics",
+      );
+    } finally {
+      if (requestId === historyRequestRef.current) {
+        setIsHistoryLoading(false);
+      }
+    }
+  }, []);
+
+  const selectHistoricalMetric = useCallback(
+    (metric: string) => {
+      if (!selectedMetricNamesRef.current.includes(metric)) {
+        return;
+      }
+      setSelectedHistoricalMetric(metric);
+      selectedHistoricalMetricRef.current = metric;
+      void fetchHistory(metric, selectedHistoricalDaysRef.current);
+    },
+    [fetchHistory],
+  );
+
+  const selectHistoricalDays = useCallback(
+    (days: number) => {
+      setSelectedHistoricalDays(days);
+      selectedHistoricalDaysRef.current = days;
+      void fetchHistory(selectedHistoricalMetricRef.current, days);
+    },
+    [fetchHistory],
+  );
+
   const value = useMemo<DashboardContextValue>(
     () => ({
       sources,
@@ -377,16 +463,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       errorMessage,
       loadButtonLabel,
       isLoadingDashboard,
+      isHistoryLoading,
       projectLoaded,
       loadedSource,
       loadedProject,
       workItems,
       metrics,
       historical,
+      selectedHistoricalMetric,
+      selectedHistoricalDays,
       selectSource,
       selectProject,
       toggleMetric,
       loadDashboard,
+      selectHistoricalMetric,
+      selectHistoricalDays,
     }),
     [
       sources,
@@ -402,16 +493,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       errorMessage,
       loadButtonLabel,
       isLoadingDashboard,
+      isHistoryLoading,
       projectLoaded,
       loadedSource,
       loadedProject,
       workItems,
       metrics,
       historical,
+      selectedHistoricalMetric,
+      selectedHistoricalDays,
       selectSource,
       selectProject,
       toggleMetric,
       loadDashboard,
+      selectHistoricalMetric,
+      selectHistoricalDays,
     ],
   );
 

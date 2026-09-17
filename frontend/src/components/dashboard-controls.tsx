@@ -48,10 +48,10 @@ export function DashboardControls() {
     !projectsLoading;
 
   return (
-    <section className="border-b bg-card px-4 py-4 md:px-8">
-      <div className="flex flex-col gap-4">
+    <section className="border-b bg-card px-4 py-3 md:px-8">
+      <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-[200px] gap-1.5">
+          <div className="grid min-w-[160px] flex-1 gap-1 sm:max-w-[240px]">
             <label htmlFor="source-select" className="text-sm font-medium">
               Source
             </label>
@@ -87,7 +87,7 @@ export function DashboardControls() {
             </Select>
           </div>
 
-          <div className="grid min-w-[200px] gap-1.5">
+          <div className="grid min-w-[160px] flex-1 gap-1 sm:max-w-[280px]">
             <label htmlFor="project-select" className="text-sm font-medium">
               Project
             </label>
@@ -133,10 +133,12 @@ export function DashboardControls() {
           </Button>
         </div>
 
-        <p className="text-sm text-muted-foreground">{selectionStatus}</p>
+        <p className="text-xs text-muted-foreground">{selectionStatus}</p>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold">Metrics</h2>
+          <h2 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Metrics included in Load
+          </h2>
           {availableMetrics.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {sourcesLoading
@@ -144,7 +146,7 @@ export function DashboardControls() {
                 : "No metrics available."}
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {categories.map((category) => (
                 <div key={category}>
                   <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">

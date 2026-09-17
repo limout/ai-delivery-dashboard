@@ -11,7 +11,7 @@ type SidebarNavProps = {
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
     <div className="flex h-full flex-col">
-      <div className="px-5 py-5">
+      <div className="px-5 py-4">
         <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
           Limout
         </p>
@@ -33,7 +33,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                 cn(
                   "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
                   isActive
-                    ? "bg-sidebar-accent font-medium text-foreground"
+                    ? "bg-sidebar-accent font-medium text-foreground shadow-[inset_2px_0_0_0_var(--foreground)]"
                     : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                 )
               }
@@ -44,10 +44,9 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           );
         })}
       </nav>
-      <div className="px-5 py-4 text-xs text-muted-foreground">
-        Classic UI remains at{" "}
-        <a href="/" className="underline underline-offset-2 hover:text-foreground">
-          /
+      <div className="mt-auto px-5 py-3 text-[11px] text-muted-foreground/80">
+        <a href="/" className="hover:text-foreground">
+          Classic UI
         </a>
       </div>
     </div>

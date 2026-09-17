@@ -142,13 +142,13 @@ export type AIRisk = {
 };
 
 export type AIAnalysisBody = {
-  risk: AIRisk;
-  facts: string[];
-  interpretation: string[];
-  impact: string[];
-  investigate: string[];
-  recommendations: string[];
-  data_gaps: string[];
+  risk?: AIRisk | null;
+  facts?: string[] | string;
+  interpretation?: string[] | string;
+  impact?: string[] | string;
+  investigate?: string[] | string;
+  recommendations?: string[] | string;
+  data_gaps?: string[] | string;
 };
 
 export type AIAnalyzeResponse = {
