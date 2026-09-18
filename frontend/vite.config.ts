@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/app/",
+  base: "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -13,7 +13,16 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/metrics": "http://127.0.0.1:8000",
+      "/metrics": {
+        target: "http://127.0.0.1:8000",
+        bypass(req) {
+          const accept = req.headers.accept ?? "";
+          if (accept.includes("text/html")) {
+            return "/index.html";
+          }
+          return undefined;
+        },
+      },
       "/sources": "http://127.0.0.1:8000",
       "/projects": "http://127.0.0.1:8000",
       "/health": "http://127.0.0.1:8000",

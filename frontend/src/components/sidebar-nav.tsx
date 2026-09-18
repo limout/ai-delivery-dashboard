@@ -45,11 +45,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           );
         })}
       </nav>
-      <div className="mt-auto px-5 py-3 text-[11px] text-muted-foreground/80">
-        <a href="/" className="hover:text-foreground">
-          Classic UI
-        </a>
-      </div>
     </div>
   );
 }

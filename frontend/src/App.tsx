@@ -11,7 +11,7 @@ import { WorkItemsPage } from "@/pages/work-items-page";
 export default function App() {
   return (
     <DashboardProvider>
-      <BrowserRouter basename="/app">
+      <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<OverviewPage />} />

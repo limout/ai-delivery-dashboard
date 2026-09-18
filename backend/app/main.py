@@ -1,8 +1,8 @@
 from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.connectors.azure.connector import AzureDevOpsConnector
@@ -32,7 +32,10 @@ app.mount(
 
 @app.get("/")
 def dashboard():
-    return FileResponse("app/static/index.html")
+    index = _spa_index_path()
+    if index is None:
+        raise HTTPException(status_code=503, detail="Frontend is not built")
+    return FileResponse(index)
 
 
 @app.get("/health")
@@ -41,7 +44,11 @@ def health():
 
 
 @app.get("/metrics")
-def metrics():
+def metrics(request: Request):
+    index = _spa_index_path()
+    if index is not None and _wants_html(request):
+        return FileResponse(index)
+
     registry = get_default_registry()
 
     return {
@@ -351,31 +358,55 @@ def _spa_dist_dir() -> Path:
     return Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
-def _register_spa_routes() -> None:
-    """Serve the Vite build at /app when it exists.
+def _spa_index_path() -> Path | None:
+    index = _spa_dist_dir() / "index.html"
+    return index if index.is_file() else None
 
-    The classic dashboard remains at GET /. API routes are unchanged.
+
+def _wants_html(request: Request) -> bool:
+    accept = request.headers.get("accept", "")
+    if not accept or accept == "*/*":
+        return False
+    for item in accept.split(","):
+        media = item.split(";", 1)[0].strip().lower()
+        if media == "text/html":
+            return True
+        if media == "application/json":
+            return False
+    return False
+
+
+def _register_spa_routes() -> None:
+    """Serve the Vite build at / when it exists.
+
+    GET /metrics remains the catalog API for JSON clients. Browser navigations
+    that send Accept: text/html receive the SPA shell instead.
     """
     dist = _spa_dist_dir()
-    index = dist / "index.html"
-    if not index.is_file():
-        return
-
     assets = dist / "assets"
     if assets.is_dir():
         app.mount(
-            "/app/assets",
+            "/assets",
             StaticFiles(directory=str(assets)),
             name="spa_assets",
         )
 
     @app.get("/app", include_in_schema=False)
     @app.get("/app/", include_in_schema=False)
-    def spa_index():
-        return FileResponse(index)
-
     @app.get("/app/{spa_path:path}", include_in_schema=False)
+    def redirect_legacy_app(request: Request, spa_path: str = ""):
+        target = f"/{spa_path}" if spa_path else "/"
+        query = request.url.query
+        if query:
+            target = f"{target}?{query}"
+        return RedirectResponse(target, status_code=307)
+
+    @app.get("/{spa_path:path}", include_in_schema=False)
     def spa_fallback(spa_path: str):
+        index = _spa_index_path()
+        if index is None:
+            raise HTTPException(status_code=503, detail="Frontend is not built")
+
         candidate = (dist / spa_path).resolve()
         try:
             candidate.relative_to(dist.resolve())

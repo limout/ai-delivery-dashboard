@@ -19,15 +19,20 @@ EXPECTED_API_PATHS = {
     "/projects/{project}/ai/analyze",
 }
 
+SPA_ACCEPT = {"Accept": "text/html"}
 
-def test_classic_dashboard_still_served():
+
+def test_react_dashboard_served_at_root():
+    if not (_spa_dist_dir() / "index.html").is_file():
+        pytest.skip("frontend dist is not built")
+
     client = TestClient(app)
     response = client.get("/")
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "AI Delivery Dashboard" in response.text
-    assert "Load Dashboard" in response.text
+    assert 'id="root"' in response.text
+    assert "Classic UI" not in response.text
 
 
 def test_health_endpoint_unchanged():
@@ -56,18 +61,38 @@ def test_metrics_catalog_contract_unchanged():
     }
 
 
-def test_existing_api_paths_were_not_removed():
-    paths = set(app.openapi()["paths"])
-    assert EXPECTED_API_PATHS <= paths
-
-
-def test_spa_shell_is_served_when_frontend_is_built():
+def test_metrics_html_navigation_serves_spa_when_built():
     if not (_spa_dist_dir() / "index.html").is_file():
         pytest.skip("frontend dist is not built")
 
     client = TestClient(app)
-    response = client.get("/app")
+    response = client.get("/metrics", headers=SPA_ACCEPT)
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert 'id="root"' in response.text
+
+
+def test_react_client_routes_serve_spa_when_built():
+    if not (_spa_dist_dir() / "index.html").is_file():
+        pytest.skip("frontend dist is not built")
+
+    client = TestClient(app)
+    for path in ("/work-items", "/insights", "/ai-analysis"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert 'id="root"' in response.text
+
+
+def test_legacy_app_prefix_redirects_to_root():
+    client = TestClient(app, follow_redirects=False)
+    response = client.get("/app/?client=AMDARIS")
+
+    assert response.status_code == 307
+    location = response.headers["location"]
+    assert "/?client=AMDARIS" in location
+
+
+def test_existing_api_paths_were_not_removed():
+    paths = set(app.openapi()["paths"])
+    assert EXPECTED_API_PATHS <= paths
