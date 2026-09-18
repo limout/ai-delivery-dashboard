@@ -1,5 +1,6 @@
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { METRIC_CATEGORY_ORDER } from "@/lib/format";
+import { isMetricUnavailable, unavailableReason } from "@/lib/delivery-briefing";
+import { METRIC_CATEGORY_ORDER, formatMetricName } from "@/lib/format";
 import type { MetricCatalogItem, MetricResult } from "@/types/api";
 
 type MetricGridProps = {
@@ -33,7 +34,12 @@ export function MetricGrid({
       category: categoryFor(name, metrics[name], catalog),
     }));
 
-  const categories = [...new Set(entries.map((entry) => entry.category))].sort(
+  const measured = entries.filter((entry) => !isMetricUnavailable(entry.metric));
+  const unavailable = entries.filter((entry) =>
+    isMetricUnavailable(entry.metric),
+  );
+
+  const categories = [...new Set(measured.map((entry) => entry.category))].sort(
     (a, b) => {
       const indexA = METRIC_CATEGORY_ORDER.indexOf(
         a as (typeof METRIC_CATEGORY_ORDER)[number],
@@ -57,11 +63,11 @@ export function MetricGrid({
     <div className="space-y-5">
       {categories.map((category) => (
         <section key={category} className="space-y-3">
-          <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {category}
-          </h3>
+          </h4>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {entries
+            {measured
               .filter((entry) => entry.category === category)
               .map((entry) => (
                 <MetricCard
@@ -73,6 +79,26 @@ export function MetricGrid({
           </div>
         </section>
       ))}
+
+      {unavailable.length > 0 ? (
+        <section className="space-y-2">
+          <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Not yet measurable
+          </h4>
+          <ul className="space-y-2 rounded-lg border border-dashed px-4 py-3">
+            {unavailable.map((entry) => (
+              <li key={entry.name} className="text-sm">
+                <span className="font-medium">
+                  {formatMetricName(entry.name)}
+                </span>
+                <span className="text-muted-foreground">
+                  {` — ${unavailableReason(entry.metric)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

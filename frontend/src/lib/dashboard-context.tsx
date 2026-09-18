@@ -24,7 +24,7 @@ import type {
   WorkItem,
 } from "@/types/api";
 
-type LoadButtonLabel = "Load Dashboard" | "Loading..." | "Load Metrics";
+type LoadButtonLabel = "Load Dashboard" | "Loading…";
 
 type DashboardContextValue = {
   sources: SourceConnection[];
@@ -44,6 +44,7 @@ type DashboardContextValue = {
   projectLoaded: boolean;
   loadedSource: string;
   loadedProject: string;
+  loadedAt: number | null;
   workItems: WorkItem[];
   metrics: ProjectMetricsResponse | null;
   historical: HistoricalMetricsResponse | null;
@@ -82,6 +83,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [projectLoaded, setProjectLoaded] = useState(false);
   const [loadedSource, setLoadedSource] = useState("");
   const [loadedProject, setLoadedProject] = useState("");
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [metrics, setMetrics] = useState<ProjectMetricsResponse | null>(null);
   const [historical, setHistorical] = useState<HistoricalMetricsResponse | null>(
@@ -92,6 +94,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const selectedMetricNamesRef = useRef(selectedMetricNames);
   selectedMetricNamesRef.current = selectedMetricNames;
+  const availableMetricsRef = useRef(availableMetrics);
+  availableMetricsRef.current = availableMetrics;
   const selectedHistoricalMetricRef = useRef(selectedHistoricalMetric);
   selectedHistoricalMetricRef.current = selectedHistoricalMetric;
   const selectedHistoricalDaysRef = useRef(selectedHistoricalDays);
@@ -110,6 +114,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setProjectLoaded(false);
     setLoadedSource("");
     setLoadedProject("");
+    setLoadedAt(null);
     setWorkItems([]);
     setMetrics(null);
     setHistorical(null);
@@ -259,7 +264,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       const requestId = ++dashboardRequestRef.current;
       setIsLoadingDashboard(true);
-      setLoadButtonLabel("Loading...");
+      setLoadButtonLabel("Loading…");
       setErrorMessage("");
 
       try {
@@ -304,11 +309,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
         setMetrics(filteredMetrics);
         setProjectLoaded(true);
+        setLoadedAt(Date.now());
         setSelectionStatus(
-          `${items.length} normalized work items available`,
+          `${items.length} work ${items.length === 1 ? "item" : "items"} loaded.`,
         );
 
-        const historyMetric = resolveHistoryMetric(metricNames);
+        const historyNames =
+          selectedMetricNamesRef.current.length > 0
+            ? selectedMetricNamesRef.current
+            : metricNames;
+        const historyMetric = resolveHistoryMetric(historyNames);
         if (!historyMetric) {
           setHistorical(null);
           return;
@@ -355,41 +365,25 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       } finally {
         if (requestId === dashboardRequestRef.current) {
           setIsLoadingDashboard(false);
-          setLoadButtonLabel("Load Metrics");
+          setLoadButtonLabel("Load Dashboard");
         }
       }
     },
     [resolveHistoryMetric, selectedProject, selectedSource],
   );
 
+  const catalogMetricNames = useCallback(() => {
+    return availableMetricsRef.current.map((metric) => metric.name);
+  }, []);
+
   const loadDashboard = useCallback(async () => {
-    await runLoad(selectedMetricNamesRef.current);
-  }, [runLoad]);
-
-  const toggleMetric = useCallback(
-    (metricName: string, checked: boolean) => {
-      const next = checked
-        ? selectedMetricNames.includes(metricName)
-          ? selectedMetricNames
-          : [...selectedMetricNames, metricName]
-        : selectedMetricNames.filter((name) => name !== metricName);
-
-      setSelectedMetricNames(next);
-
-      if (!projectLoaded) {
-        return;
-      }
-
-      if (next.length === 0) {
-        setMetrics(null);
-        setHistorical(null);
-        return;
-      }
-
-      void runLoad(next);
-    },
-    [projectLoaded, runLoad, selectedMetricNames],
-  );
+    const names = catalogMetricNames();
+    if (names.length === 0) {
+      setErrorMessage("Error loading metrics: No metrics are available");
+      return;
+    }
+    await runLoad(names);
+  }, [catalogMetricNames, runLoad]);
 
   const fetchHistory = useCallback(async (metric: string, days: number) => {
     const source = loadedSourceRef.current;
@@ -426,6 +420,32 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
     }
   }, []);
+
+  const toggleMetric = useCallback(
+    (metricName: string, checked: boolean) => {
+      const current = selectedMetricNamesRef.current;
+      const next = checked
+        ? current.includes(metricName)
+          ? current
+          : [...current, metricName]
+        : current.filter((name) => name !== metricName);
+
+      setSelectedMetricNames(next);
+
+      if (
+        next.length > 0 &&
+        !next.includes(selectedHistoricalMetricRef.current)
+      ) {
+        const nextHistory = resolveHistoryMetric(next);
+        if (nextHistory && projectLoaded) {
+          setSelectedHistoricalMetric(nextHistory);
+          selectedHistoricalMetricRef.current = nextHistory;
+          void fetchHistory(nextHistory, selectedHistoricalDaysRef.current);
+        }
+      }
+    },
+    [fetchHistory, projectLoaded, resolveHistoryMetric],
+  );
 
   const selectHistoricalMetric = useCallback(
     (metric: string) => {
@@ -467,6 +487,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       projectLoaded,
       loadedSource,
       loadedProject,
+      loadedAt,
       workItems,
       metrics,
       historical,
@@ -497,6 +518,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       projectLoaded,
       loadedSource,
       loadedProject,
+      loadedAt,
       workItems,
       metrics,
       historical,

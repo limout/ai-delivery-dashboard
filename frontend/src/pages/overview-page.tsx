@@ -1,5 +1,6 @@
-import { DeliveryHealth } from "@/components/dashboard/delivery-health";
-import { MetricGrid } from "@/components/dashboard/metric-grid";
+import { DeliveryRisk } from "@/components/dashboard/delivery-risk";
+import { DataQualitySummary } from "@/components/dashboard/data-quality-summary";
+import { ExecutiveBriefing } from "@/components/dashboard/executive-briefing";
 import { WorkItemSummary } from "@/components/dashboard/work-item-summary";
 import {
   PageEmpty,
@@ -7,21 +8,33 @@ import {
   PageLoading,
   PageShell,
 } from "@/components/page-header";
+import { buildDeliveryBriefing } from "@/lib/delivery-briefing";
 import { useDashboard } from "@/lib/dashboard-context";
 import { formatSource } from "@/lib/format";
+import { useMemo } from "react";
+
+function formatLoadedAt(loadedAt: number | null): string | null {
+  if (!loadedAt) {
+    return null;
+  }
+  return new Date(loadedAt).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 export function OverviewPage() {
   const {
     selectedProject,
-    availableMetrics,
-    selectedMetricNames,
     errorMessage,
     isLoadingDashboard,
     projectLoaded,
     loadedSource,
     loadedProject,
+    loadedAt,
     workItems,
     metrics,
+    historical,
   } = useDashboard();
 
   const hasLoadError =
@@ -34,6 +47,12 @@ export function OverviewPage() {
       ? `${formatSource(loadedSource)} · ${loadedProject}`
       : null;
 
+  const asOf = formatLoadedAt(loadedAt);
+  const briefing = useMemo(
+    () => buildDeliveryBriefing(metrics, workItems, historical),
+    [historical, metrics, workItems],
+  );
+
   if (isLoadingDashboard) {
     return (
       <PageShell>
@@ -45,8 +64,8 @@ export function OverviewPage() {
   if (!selectedProject && !projectLoaded) {
     return (
       <PageEmpty title="Overview">
-        Select a source and project, then load the dashboard to see KPIs,
-        delivery health, and work-item mix.
+        Select a source and project, then Load Dashboard to see a delivery
+        briefing for that project.
       </PageEmpty>
     );
   }
@@ -54,8 +73,8 @@ export function OverviewPage() {
   if (selectedProject && !projectLoaded && !hasLoadError) {
     return (
       <PageEmpty title="Overview">
-        {selectedProject} is selected. Load the dashboard to see current metrics
-        and work items.
+        {selectedProject} is selected. Load Dashboard to see the delivery
+        briefing.
       </PageEmpty>
     );
   }
@@ -63,8 +82,8 @@ export function OverviewPage() {
   if (hasLoadError) {
     return (
       <PageEmpty title="Overview">
-        Dashboard data is unavailable. Resolve the issue in the controls above,
-        then load again.
+        Delivery data could not be loaded. Resolve the issue in the controls
+        above, then Load Dashboard again.
       </PageEmpty>
     );
   }
@@ -74,28 +93,23 @@ export function OverviewPage() {
       <PageHeader
         kicker={kicker}
         title="Overview"
-        description="Executive summary of the loaded project."
+        description={
+          asOf
+            ? `As of ${asOf}`
+            : "Delivery briefing for the loaded project."
+        }
       />
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">KPI summary</h3>
-        {metrics ? (
-          <MetricGrid
-            selectedMetricNames={selectedMetricNames}
-            metrics={metrics}
-            catalog={availableMetrics}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Current metrics are not available.
-          </p>
-        )}
-      </section>
+      <ExecutiveBriefing briefing={briefing} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <DeliveryHealth metrics={metrics} />
-        <WorkItemSummary workItems={workItems} />
-      </div>
+      <DeliveryRisk
+        concerns={briefing.concerns}
+        dataInsufficient={briefing.dataInsufficient}
+      />
+
+      <WorkItemSummary workItems={workItems} />
+
+      <DataQualitySummary metrics={metrics} />
     </PageShell>
   );
 }

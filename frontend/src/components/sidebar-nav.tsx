@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 import { Separator } from "@/components/ui/separator";
+import { CLIENT_NAME } from "@/lib/client-name";
 import { NAV_ITEMS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +13,8 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="px-5 py-4">
-        <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-          Limout
+        <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground">
+          {CLIENT_NAME}
         </p>
         <h1 className="mt-1 text-[15px] leading-5 font-semibold tracking-tight">
           AI Delivery Dashboard

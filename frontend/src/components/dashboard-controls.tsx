@@ -9,10 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDashboard } from "@/lib/dashboard-context";
-import {
-  formatMetricName,
-  sortMetricCategories,
-} from "@/lib/format";
 
 const EMPTY_SOURCE = "__empty_source__";
 const EMPTY_PROJECT = "__empty_project__";
@@ -26,32 +22,23 @@ export function DashboardControls() {
     projectsLoading,
     projectsError,
     selectedProject,
-    availableMetrics,
-    selectedMetricNames,
     selectionStatus,
     errorMessage,
     loadButtonLabel,
     isLoadingDashboard,
     selectSource,
     selectProject,
-    toggleMetric,
     loadDashboard,
   } = useDashboard();
 
-  const categories = sortMetricCategories([
-    ...new Set(availableMetrics.map((metric) => metric.category || "other")),
-  ]);
-
   const canLoad =
-    Boolean(selectedProject) &&
-    !isLoadingDashboard &&
-    !projectsLoading;
+    Boolean(selectedProject) && !isLoadingDashboard && !projectsLoading;
 
   return (
     <section className="border-b bg-card px-4 py-3 md:px-8">
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-[160px] flex-1 gap-1 sm:max-w-[240px]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="grid w-full min-w-0 gap-1 sm:max-w-[240px] sm:flex-1">
             <label htmlFor="source-select" className="text-sm font-medium">
               Source
             </label>
@@ -62,7 +49,7 @@ export function DashboardControls() {
               }
               disabled={sourcesLoading}
             >
-              <SelectTrigger id="source-select" className="w-[240px] max-w-full">
+              <SelectTrigger id="source-select" className="w-full">
                 <SelectValue
                   placeholder={
                     sourcesLoading ? "Loading sources..." : "Select a source..."
@@ -87,7 +74,7 @@ export function DashboardControls() {
             </Select>
           </div>
 
-          <div className="grid min-w-[160px] flex-1 gap-1 sm:max-w-[280px]">
+          <div className="grid w-full min-w-0 gap-1 sm:max-w-[280px] sm:flex-1">
             <label htmlFor="project-select" className="text-sm font-medium">
               Project
             </label>
@@ -98,7 +85,7 @@ export function DashboardControls() {
               }
               disabled={!selectedSource || projectsLoading || projectsError}
             >
-              <SelectTrigger id="project-select" className="w-[280px] max-w-full">
+              <SelectTrigger id="project-select" className="w-full">
                 <SelectValue
                   placeholder={
                     projectsLoading
@@ -125,6 +112,7 @@ export function DashboardControls() {
           <Button
             type="button"
             size="sm"
+            className="w-fit shrink-0"
             disabled={!canLoad}
             onClick={() => void loadDashboard()}
           >
@@ -134,51 +122,6 @@ export function DashboardControls() {
         </div>
 
         <p className="text-xs text-muted-foreground">{selectionStatus}</p>
-
-        <div>
-          <h2 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Metrics included in Load
-          </h2>
-          {availableMetrics.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {sourcesLoading
-                ? "Loading available metrics..."
-                : "No metrics available."}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {categories.map((category) => (
-                <div key={category}>
-                  <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    {category}
-                  </p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    {availableMetrics
-                      .filter(
-                        (metric) => (metric.category || "other") === category,
-                      )
-                      .map((metric) => (
-                        <label
-                          key={metric.name}
-                          className="flex cursor-pointer items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            className="size-4 accent-foreground"
-                            checked={selectedMetricNames.includes(metric.name)}
-                            onChange={(event) =>
-                              toggleMetric(metric.name, event.target.checked)
-                            }
-                          />
-                          {formatMetricName(metric.name)}
-                        </label>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {errorMessage ? (
           <p className="text-sm text-destructive" role="alert">

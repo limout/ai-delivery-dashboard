@@ -27,6 +27,7 @@ export function AppLayout() {
   const title = pageTitle(location.pathname);
   const isOverview =
     location.pathname === "/" || location.pathname === "";
+  const isMetrics = location.pathname.startsWith("/metrics");
 
   return (
     <div className="flex min-h-full bg-background">
@@ -61,7 +62,11 @@ export function AppLayout() {
           </div>
         </header>
 
-        {isOverview ? <DashboardControls /> : <InnerProjectBar />}
+        {isOverview ? (
+          <DashboardControls />
+        ) : isMetrics ? null : (
+          <InnerProjectBar />
+        )}
 
         <main className="min-w-0 flex-1 px-4 py-5 md:px-8">
           <Outlet />

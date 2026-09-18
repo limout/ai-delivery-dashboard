@@ -97,11 +97,13 @@ export function HistoryChart({
           </div>
         ) : null}
         <div className="flex min-h-8 flex-wrap items-center gap-2">
-          {byIteration ? (
-            <p className="rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
-              Shown by iteration — calendar windows do not apply
-            </p>
-          ) : (
+            {byIteration ? (
+              <p className="rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                {selectedMetric === "commitment_vs_completed"
+                  ? "By iteration. This is a current-assignment proxy, not sprint-start commitment. Calendar windows do not apply."
+                  : "Shown by iteration — calendar windows do not apply."}
+              </p>
+            ) : (
             <div className="flex gap-1">
               {[7, 14, 30].map((days) => (
                 <Button

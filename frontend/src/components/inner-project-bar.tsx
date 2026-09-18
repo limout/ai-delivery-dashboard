@@ -27,7 +27,7 @@ export function InnerProjectBar() {
               <span className="text-muted-foreground">
                 {projectLoaded
                   ? " · Loaded"
-                  : " · Load the dashboard from Overview"}
+                  : " · Load from Overview"}
               </span>
             </>
           ) : (
